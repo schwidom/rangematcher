@@ -6,7 +6,10 @@
 #include "PatternVector.hpp"
 #include "Range.hpp"
 
+#include <algorithm> // sort
 #include <iostream>
+#include <iterator> // distance
+#include <utility>
 #include <vector>
 
 void test()
@@ -78,6 +81,51 @@ void test2()
  PatternRange prString{patternDoubleQuote, patternDoubleQuote};
  
  std::unique_ptr<std::vector<char>> vectorTf002 { static_cast<std::unique_ptr<std::vector<char>>>(FileToVector("testfiles/002.txt"))};
+
+ struct Status {
+  std::string name;
+  std::unique_ptr<Match> match;
+ };
+
+ using P = std::pair<PatternRange * , Status>;
+
+ std::vector<P> v;
+
+ v.push_back(P(&prComment1, Status{"prComment1"}));
+ v.push_back(P(&prComment2, Status{"prComment2"}));
+ v.push_back(P(&prString, Status{"prString"}));
+
+ for( auto & value : v) {
+  std::unique_ptr<Match> match { value.first->von->match(Range{vectorTf002->begin(), vectorTf002->end()})};
+  value.second.match = std::move(match);
+ }
+
+ std::sort(v.begin(), v.end(), [](P& p1, P& p2) -> bool {
+  if( p1.second.match->matched())
+  {
+   if( !p2.second.match->matched())
+   {
+    return true;
+   }
+   else
+   {
+    return p1.second.match->get()->m_Range.begin < p2.second.match->get()->m_Range.begin;
+   }
+  }
+
+  return false;
+ });
+
+ std::cout << ("prComment1" == v.at(0).second.name) << std::endl;
+ std::cout << ("prString" == v.at(1).second.name) << std::endl;
+ std::cout << ("prComment2" == v.at(2).second.name) << std::endl;
+
+ std::cout << (v.at(0).second.match->matched()) << std::endl;
+ std::cout << (v.at(1).second.match->matched()) << std::endl;
+ std::cout << (!v.at(2).second.match->matched()) << std::endl;
+
+ std::cout << ( 0 == std::distance( vectorTf002->begin() , v.at(0).second.match->get()->m_Range.begin)) << std::endl;
+ std::cout << ( 3 == std::distance( vectorTf002->begin() , v.at(1).second.match->get()->m_Range.begin)) << std::endl;
 
 }
 
