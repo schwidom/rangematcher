@@ -1,10 +1,13 @@
 
-all : tags a.out
+all : tags cmake-debug/cmake-files/rangematcher
+
+clean :
+	rm -vrf cmake-debug/cmake-files tags
 
 tags : *.hpp *.cpp
 	ctags-exuberant --extra=+q --fields=+a+i --recurse --c++-kinds=+p .
 
-a.out : *.hpp *.cpp
-	# g++ -O3 -Wall --std=c++14 *.cpp
-	g++ -Wall --std=c++14 *.cpp
-
+cmake-debug/cmake-files/rangematcher : *.hpp *.cpp
+	mkdir -p $(dir $@)
+	cd $(dir $@); cmake ..
+	make -C $(dir $@) -j8 
