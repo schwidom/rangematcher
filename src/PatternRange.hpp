@@ -4,8 +4,20 @@
 
 #include <memory>
 
-struct PatternRange
+class PatternRange
 {
- const std::shared_ptr<const Pattern> von;
- const std::shared_ptr<const Pattern> bis;
+public:
+ struct I
+ {
+  const std::shared_ptr<const Pattern> von;
+  const std::shared_ptr<const Pattern> bis;
+ };
+
+ PatternRange( const I & i);
+
+ const I & i() const ;
+
+private:
+
+ const I m_I;
 };

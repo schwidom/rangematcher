@@ -75,10 +75,10 @@ void test()
 
 void test2()
 {
- PatternRange prComment1{ std::make_shared<PatternString>( "/*"), std::make_shared<PatternString>( "*/")};
- PatternRange prComment2{ std::make_shared<PatternString>( "//"), std::make_shared<PatternString>( "\n")};
+ PatternRange prComment1{ PatternRange::I{std::make_shared<PatternString>( "/*"), std::make_shared<PatternString>( "*/")}};
+ PatternRange prComment2{ PatternRange::I{std::make_shared<PatternString>( "//"), std::make_shared<PatternString>( "\n")}};
  std::shared_ptr<Pattern> patternDoubleQuote{std::make_shared<PatternString>("\"")};
- PatternRange prString{patternDoubleQuote, patternDoubleQuote};
+ PatternRange prString{ PatternRange::I{patternDoubleQuote, patternDoubleQuote}};
  
  std::unique_ptr<std::vector<char>> vectorTf002 { static_cast<std::unique_ptr<std::vector<char>>>(FileToVector("testfiles/002.txt"))};
 
@@ -96,7 +96,7 @@ void test2()
  v.push_back(P(&prString, Status{"prString"}));
 
  for( auto & value : v) {
-  std::unique_ptr<Match> match { value.first->von->match(Range{vectorTf002->begin(), vectorTf002->end()})};
+  std::unique_ptr<Match> match { value.first->i().von->match(Range{vectorTf002->begin(), vectorTf002->end()})};
   value.second.match = std::move(match);
  }
 

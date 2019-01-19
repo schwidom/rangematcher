@@ -1,12 +1,15 @@
 
 help:
-	@echo "all all-debug all-release tags debug release clean"
+	@echo "all all-debug all-release tags debug release clean testhpp"
 
-all : tags debug release
+all : testhpp tags debug release
 
-all-debug : tags debug 
+all-debug : testhpp tags debug 
 
-all-release : tags release
+all-release : testhpp tags release
+
+testhpp : 
+	dev_bin/testhpp.sh
 
 clean : clean-tags clean-debug clean-release
 
@@ -25,6 +28,7 @@ tags : src/*.hpp src/*.cpp
 debug : cmake-debug/cmake-files/rangematcher
 
 cmake-debug/cmake-files/rangematcher : src/*.hpp src/*.cpp
+	rm -vf $@
 	mkdir -p $(dir $@)
 	cd $(dir $@); cmake ..
 	make -C $(dir $@) -j8 
@@ -32,6 +36,7 @@ cmake-debug/cmake-files/rangematcher : src/*.hpp src/*.cpp
 release : cmake-release/cmake-files/rangematcher
 
 cmake-release/cmake-files/rangematcher : src/*.hpp src/*.cpp
+	rm -vf $@
 	mkdir -p $(dir $@)
 	cd $(dir $@); cmake ..
 	make -C $(dir $@) -j8 
