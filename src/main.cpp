@@ -1,5 +1,6 @@
 
 #include "FileToVector.hpp"
+#include "MatchRange.hpp"
 #include "NamedPatternRange.hpp"
 #include "NamingWeakOrdered.hpp"
 #include "NonOverlappingMatcher.hpp"
@@ -200,20 +201,33 @@ void test4()
 {
  std::cout << __func__ << std::endl;
 
- std::shared_ptr<NamedPatternRange> prComment1{ std::make_shared<NamedPatternRange>(NamedPatternRange::I{"prComment1", std::make_shared<PatternString>( "/*"), std::make_shared<PatternString>( "*/")})};
+ std::shared_ptr<const NamedPatternRange> prComment1{ std::make_shared<const NamedPatternRange>(NamedPatternRange::I{"prComment1", std::make_shared<PatternString>( "/*"), std::make_shared<PatternString>( "*/")})};
 
- std::shared_ptr<NamedPatternRange> prComment2{ std::make_shared<NamedPatternRange>(NamedPatternRange::I{"prComment2", std::make_shared<PatternString>( "//"), std::make_shared<PatternString>( "\n")})};
+ std::shared_ptr<const NamedPatternRange> prComment2{ std::make_shared<const NamedPatternRange>(NamedPatternRange::I{"prComment2", std::make_shared<PatternString>( "//"), std::make_shared<PatternString>( "\n")})};
  std::shared_ptr<Pattern> patternDoubleQuote{std::make_shared<PatternString>("\"")};
- std::shared_ptr<NamedPatternRange> prString{std::make_shared<NamedPatternRange>(NamedPatternRange::I{"prString", patternDoubleQuote, patternDoubleQuote})};
+ std::shared_ptr<const NamedPatternRange> prString{std::make_shared<const NamedPatternRange>(NamedPatternRange::I{"prString", patternDoubleQuote, patternDoubleQuote})};
 
- std::vector<std::shared_ptr<NamedPatternRange>> patternRangeVector{ prComment1, prComment2, prString};
+ std::vector<std::shared_ptr<const NamedPatternRange>> patternRangeVector{ prComment1, prComment2, prString};
 
- // NonOverlappingMatcher nonOverlappingMatcher{std::vector<std::shared_ptr<NamedPatternRange>>{prComment1,prComment2,prString}};
  NonOverlappingMatcher nonOverlappingMatcher{patternRangeVector};
 
  std::unique_ptr<std::vector<char>> vectorTf002 { static_cast<std::unique_ptr<std::vector<char>>>(FileToVector("testfiles/002.txt"))};
 
- nonOverlappingMatcher.matchAll(Range{vectorTf002->begin(), vectorTf002->end()});
+ std::unique_ptr<std::vector<MatchRange>> matchedRanges { nonOverlappingMatcher.matchAll(Range{vectorTf002->begin(), vectorTf002->end()})};
+
+ std::cout << ( 2 == matchedRanges->size()) << std::endl;
+
+ {
+  MatchRange & mr{ matchedRanges->at(0)};
+  std::cout << ( "prComment1" == mr.getName()) << std::endl;
+  std::cout << ( "/* \" */" == std::string(mr.i().d.begin.begin, mr.i().d.end.end)) << std::endl;
+ }
+
+ {
+  MatchRange & mr{ matchedRanges->at(1)};
+  std::cout << ( "prString" == mr.getName()) << std::endl;
+  std::cout << ( "\" /* \"" == std::string(mr.i().d.begin.begin, mr.i().d.end.end)) << std::endl;
+ }
 }
 
 int main( int argc, char** argv)

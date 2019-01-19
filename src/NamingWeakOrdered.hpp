@@ -12,6 +12,7 @@ public:
  };
 
  explicit NamingWeakOrdered(const I & i);
+ virtual ~NamingWeakOrdered() = default;
 
  const std::string & getName() const ;
 

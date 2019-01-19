@@ -7,10 +7,10 @@
 
 #include <stdexcept> // logic_error
 
-#include <iostream> // TODO remove
+#include <csignal>
 
-NonOverlappingMatcher::NonOverlappingMatcher(std::vector<std::shared_ptr<NamedPatternRange>> & patternRange)
-: m_PatternRange{patternRange}
+NonOverlappingMatcher::NonOverlappingMatcher(const std::vector<std::shared_ptr<const NamedPatternRange>> & patternRange)
+: m_PatternRange(patternRange)
 {
 }
 
@@ -26,7 +26,7 @@ namespace {
  {
   for( auto & value : v) {
 
-   if( ! value.second.match 
+   if( ! value.second.match // pen45x1itp
     || ( value.second.match->matched() && value.second.match->get()->m_Range.begin < range.begin)
     ) // NOTE: this condition is an optimization, if in doubt, replace with true
    {
@@ -51,7 +51,7 @@ namespace {
    return false;
   });
 
-  return std::move( v.front().second.match);
+  return std::move( v.front().second.match); // pen45x1itp 
  }
 
  std::unique_ptr<Match> findClosingMatch( const std::vector<P> & v, Range range)
@@ -60,18 +60,19 @@ namespace {
  }
 }
 
-void NonOverlappingMatcher::matchAll(Range range) const
+std::unique_ptr<std::vector<MatchRange>> NonOverlappingMatcher::matchAll(Range range) const
 {
- 
  std::vector<P> v;
 
+ std::unique_ptr<std::vector<MatchRange>> ret{ std::make_unique<std::vector<MatchRange>>()};
+
  if( 0==m_PatternRange.size()){
-  return; 
+  return std::move(ret); 
  }
 
  for( auto & namedPatternRange : m_PatternRange)
  {
-  v.push_back(P(namedPatternRange.get(), Status{}));
+  v.push_back(P(namedPatternRange.get(), Status{})); // pen45x1itp
  }
 
  Range currentRange(range);
@@ -79,59 +80,67 @@ void NonOverlappingMatcher::matchAll(Range range) const
  while( true)
  {
 
+  // bicwwvbdnj 
+  MatchRange::I matchRangeI{};
+
   // find first match
 
   std::unique_ptr<Match> matchOpen{ findOpeningMatch( v, currentRange)};
 
-  std::cout << ("prComment1" == v.at(0).first->getName()) << std::endl;
-  std::cout << ("prString" == v.at(1).first->getName()) << std::endl;
-  std::cout << ("prComment2" == v.at(2).first->getName()) << std::endl;
-
-  // std::cout << (v.at(0).second.match->matched()) << std::endl; // crash (moved away in findOpeningMatch)
-  std::cout << (v.at(1).second.match->matched()) << std::endl;
-  std::cout << (!v.at(2).second.match->matched()) << std::endl;
-
-  // std::cout << ( 0 == std::distance( vectorTf002->begin() , v.at(0).second.match->get()->m_Range.begin)) << std::endl;
-  // std::cout << ( 3 == std::distance( vectorTf002->begin() , v.at(1).second.match->get()->m_Range.begin)) << std::endl;
-
-
   if( !matchOpen->matched()){
-   return; // no further matches
+   break; // no further matches
   }
 
+  // bicwwvbdnj 
+  matchRangeI.namingWeakOrdered = {v.at(0).first->getName()};
+  matchRangeI.d.begin = matchOpen->get()->m_Range;
+  matchRangeI.d.complete = false;
+  matchRangeI.d.end = Range{ range.end, range.end};
 
-  std::function<void()> currentRangeCheck{ [&currentRange, &range](){
-   std::cout << (currentRange.begin - range.begin) << std::endl;
+  std::function<bool()> currentRangeCheck{ [&currentRange, &range]() -> bool {
 
    if( currentRange.begin == currentRange.end)
    {
-    return; // no further matches
+    return false; // no further matches
    }
 
    if( currentRange.begin > currentRange.end)
    {
     throw std::logic_error("currentRange.begin > currentRange.end");
    }
+
+   return true;
   }};
 
   currentRange.begin = matchOpen->get()->m_Range.end; // MatchGot
 
-  currentRangeCheck();
+  if( ! currentRangeCheck()){
+   ret->emplace_back(matchRangeI);
+   break;
+  }
 
   // seek closing match
 
   std::unique_ptr<Match> matchClose{ findClosingMatch( v, currentRange)};
   
   if( !matchClose->matched()){
-   return; // no further matches
+   ret->emplace_back(matchRangeI);
+   break; // no further matches
   }
+
+  // bicwwvbdnj 
+  matchRangeI.d.complete = true;
+  matchRangeI.d.end = matchClose->get()->m_Range;
 
   currentRange.begin = matchClose->get()->m_Range.end; // MatchGot
 
-  // TODO : matches sammeln, benennen und zurueckgeben
+  if( ! currentRangeCheck()){ 
+   ret->emplace_back(matchRangeI);
+   break;
+  }
 
+  ret->emplace_back(matchRangeI);
  }
- 
 
+ return std::move(ret);
 }
-

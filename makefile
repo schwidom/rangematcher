@@ -1,6 +1,6 @@
 
 help:
-	@echo "all all-debug all-release tags debug release clean testhpp"
+	@echo "all all-debug all-release tags debug release clean testhpp run-debug run-release run-gdb"
 
 all : testhpp tags debug release
 
@@ -33,6 +33,12 @@ cmake-debug/cmake-files/rangematcher : src/*.hpp src/*.cpp
 	cd $(dir $@); cmake ..
 	make -C $(dir $@) -j8 
 
+run-debug : cmake-debug/cmake-files/rangematcher
+	$?
+
+run-gdb : cmake-debug/cmake-files/rangematcher
+	gdb $?
+
 release : cmake-release/cmake-files/rangematcher
 
 cmake-release/cmake-files/rangematcher : src/*.hpp src/*.cpp
@@ -40,4 +46,8 @@ cmake-release/cmake-files/rangematcher : src/*.hpp src/*.cpp
 	mkdir -p $(dir $@)
 	cd $(dir $@); cmake ..
 	make -C $(dir $@) -j8 
+
+run-release : cmake-release/cmake-files/rangematcher
+	$?
+
 

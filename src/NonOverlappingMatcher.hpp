@@ -1,18 +1,19 @@
 #pragma once
 
 #include "NamedPatternRange.hpp"
+#include "MatchRange.hpp"
 
 #include <memory>
 
 class NonOverlappingMatcher
 {
 public:
- NonOverlappingMatcher(std::vector<std::shared_ptr<NamedPatternRange>> & patternRange);
+ NonOverlappingMatcher(const std::vector<std::shared_ptr<const NamedPatternRange>> & patternRange);
 
- void matchAll(Range range) const;
+ std::unique_ptr<std::vector<MatchRange>> matchAll(Range range) const;
 
 private:
  
- std::vector<std::shared_ptr<NamedPatternRange>> m_PatternRange;
+ const std::vector<std::shared_ptr<const NamedPatternRange>> m_PatternRange;
 };
 
