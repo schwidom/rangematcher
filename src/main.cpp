@@ -1,5 +1,7 @@
 
 #include "FileToVector.hpp"
+#include "NamedPatternRange.hpp"
+#include "NamingWeakOrdered.hpp"
 #include "PatternRange.hpp"
 #include "PatternRegex.hpp"
 #include "PatternString.hpp"
@@ -14,6 +16,9 @@
 
 void test()
 {
+
+ std::cout << __func__ << std::endl;
+
  std::vector<char> v{'1','a','b','c','2'};
 
  std::vector<char> v2{'b','c'};
@@ -75,6 +80,9 @@ void test()
 
 void test2()
 {
+
+ std::cout << __func__ << std::endl;
+
  PatternRange prComment1{ PatternRange::I{std::make_shared<PatternString>( "/*"), std::make_shared<PatternString>( "*/")}};
  PatternRange prComment2{ PatternRange::I{std::make_shared<PatternString>( "//"), std::make_shared<PatternString>( "\n")}};
  std::shared_ptr<Pattern> patternDoubleQuote{std::make_shared<PatternString>("\"")};
@@ -129,12 +137,72 @@ void test2()
 
 }
 
+void test3()
+{
+
+ std::cout << __func__ << std::endl;
+
+ NamedPatternRange prComment1{{"prComment1", std::make_shared<PatternString>( "/*"), std::make_shared<PatternString>( "*/")}};
+ NamedPatternRange prComment2{{"prComment2", std::make_shared<PatternString>( "//"), std::make_shared<PatternString>( "\n")}};
+ std::shared_ptr<Pattern> patternDoubleQuote{std::make_shared<PatternString>("\"")};
+ NamedPatternRange prString{{"prString", patternDoubleQuote, patternDoubleQuote}};
+
+ 
+ std::unique_ptr<std::vector<char>> vectorTf002 { static_cast<std::unique_ptr<std::vector<char>>>(FileToVector("testfiles/002.txt"))};
+
+ struct Status {
+  std::unique_ptr<Match> match;
+ };
+
+ using P = std::pair<NamedPatternRange * , Status>;
+
+ std::vector<P> v;
+
+ v.push_back(P(&prComment1, Status{}));
+ v.push_back(P(&prComment2, Status{}));
+ v.push_back(P(&prString, Status{}));
+
+ for( auto & value : v) {
+  std::unique_ptr<Match> match { value.first->i().von->match(Range{vectorTf002->begin(), vectorTf002->end()})};
+  value.second.match = std::move(match);
+ }
+
+ std::sort(v.begin(), v.end(), [](P& p1, P& p2) -> bool {
+  if( p1.second.match->matched())
+  {
+   if( !p2.second.match->matched())
+   {
+    return true;
+   }
+   else
+   {
+    return p1.second.match->get()->m_Range.begin < p2.second.match->get()->m_Range.begin;
+   }
+  }
+
+  return false;
+ });
+
+ std::cout << ("prComment1" == v.at(0).first->getName()) << std::endl;
+ std::cout << ("prString" == v.at(1).first->getName()) << std::endl;
+ std::cout << ("prComment2" == v.at(2).first->getName()) << std::endl;
+
+ std::cout << (v.at(0).second.match->matched()) << std::endl;
+ std::cout << (v.at(1).second.match->matched()) << std::endl;
+ std::cout << (!v.at(2).second.match->matched()) << std::endl;
+
+ std::cout << ( 0 == std::distance( vectorTf002->begin() , v.at(0).second.match->get()->m_Range.begin)) << std::endl;
+ std::cout << ( 3 == std::distance( vectorTf002->begin() , v.at(1).second.match->get()->m_Range.begin)) << std::endl;
+}
+
 int main( int argc, char** argv)
 {
 
  test();
 
  test2();
+
+ test3();
  
  return 0;
 }
