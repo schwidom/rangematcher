@@ -7,9 +7,9 @@
 class NonOverlappingMatcher
 {
 public:
- NonOverlappingMatcher(std::vector<std::shared_ptr<NamedPatternRange>> patternRange);
+ NonOverlappingMatcher(std::vector<std::shared_ptr<NamedPatternRange>> & patternRange);
 
- void matchAll(Range range);
+ void matchAll(Range range) const;
 
 private:
  

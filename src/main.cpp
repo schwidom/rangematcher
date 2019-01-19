@@ -2,6 +2,7 @@
 #include "FileToVector.hpp"
 #include "NamedPatternRange.hpp"
 #include "NamingWeakOrdered.hpp"
+#include "NonOverlappingMatcher.hpp"
 #include "PatternRange.hpp"
 #include "PatternRegex.hpp"
 #include "PatternString.hpp"
@@ -195,6 +196,26 @@ void test3()
  std::cout << ( 3 == std::distance( vectorTf002->begin() , v.at(1).second.match->get()->m_Range.begin)) << std::endl;
 }
 
+void test4()
+{
+ std::cout << __func__ << std::endl;
+
+ std::shared_ptr<NamedPatternRange> prComment1{ std::make_shared<NamedPatternRange>(NamedPatternRange::I{"prComment1", std::make_shared<PatternString>( "/*"), std::make_shared<PatternString>( "*/")})};
+
+ std::shared_ptr<NamedPatternRange> prComment2{ std::make_shared<NamedPatternRange>(NamedPatternRange::I{"prComment2", std::make_shared<PatternString>( "//"), std::make_shared<PatternString>( "\n")})};
+ std::shared_ptr<Pattern> patternDoubleQuote{std::make_shared<PatternString>("\"")};
+ std::shared_ptr<NamedPatternRange> prString{std::make_shared<NamedPatternRange>(NamedPatternRange::I{"prString", patternDoubleQuote, patternDoubleQuote})};
+
+ std::vector<std::shared_ptr<NamedPatternRange>> patternRangeVector{ prComment1, prComment2, prString};
+
+ // NonOverlappingMatcher nonOverlappingMatcher{std::vector<std::shared_ptr<NamedPatternRange>>{prComment1,prComment2,prString}};
+ NonOverlappingMatcher nonOverlappingMatcher{patternRangeVector};
+
+ std::unique_ptr<std::vector<char>> vectorTf002 { static_cast<std::unique_ptr<std::vector<char>>>(FileToVector("testfiles/002.txt"))};
+
+ nonOverlappingMatcher.matchAll(Range{vectorTf002->begin(), vectorTf002->end()});
+}
+
 int main( int argc, char** argv)
 {
 
@@ -204,6 +225,8 @@ int main( int argc, char** argv)
 
  test3();
  
+ test4();
+
  return 0;
 }
 
