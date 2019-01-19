@@ -25,8 +25,14 @@ namespace {
  std::unique_ptr<Match> findOpeningMatch( std::vector<P> & v, Range range) 
  {
   for( auto & value : v) {
-   std::unique_ptr<Match> match { value.first->i().von->match(range)};
-   value.second.match = std::move(match);
+
+   if( ! value.second.match 
+    || ( value.second.match->matched() && value.second.match->get()->m_Range.begin < range.begin)
+    ) // NOTE: this condition is an optimization, if in doubt, replace with true
+   {
+    std::unique_ptr<Match> match { value.first->i().von->match(range)};
+    value.second.match = std::move(match);
+   }
   }
 
   std::sort(v.begin(), v.end(), [](P& p1, P& p2) -> bool {
