@@ -201,33 +201,167 @@ void test4()
 {
  std::cout << __func__ << std::endl;
 
- std::shared_ptr<const NamedPatternRange> prComment1{ std::make_shared<const NamedPatternRange>(NamedPatternRange::I{"prComment1", std::make_shared<PatternString>( "/*"), std::make_shared<PatternString>( "*/")})};
+ using CNPT = const NamedPatternRange;
 
- std::shared_ptr<const NamedPatternRange> prComment2{ std::make_shared<const NamedPatternRange>(NamedPatternRange::I{"prComment2", std::make_shared<PatternString>( "//"), std::make_shared<PatternString>( "\n")})};
- std::shared_ptr<Pattern> patternDoubleQuote{std::make_shared<PatternString>("\"")};
- std::shared_ptr<const NamedPatternRange> prString{std::make_shared<const NamedPatternRange>(NamedPatternRange::I{"prString", patternDoubleQuote, patternDoubleQuote})};
+ auto prComment1( std::make_shared<CNPT>(CNPT::I{"prComment1", std::make_shared<PatternString>( "/*"), std::make_shared<PatternString>( "*/")}));
 
- std::vector<std::shared_ptr<const NamedPatternRange>> patternRangeVector{ prComment1, prComment2, prString};
+ auto prComment2( std::make_shared<CNPT>(CNPT::I{"prComment2", std::make_shared<PatternString>( "//"), std::make_shared<PatternString>( "\n")}));
+ auto patternDoubleQuote(std::make_shared<PatternString>("\""));
+ auto prString(std::make_shared<CNPT>(CNPT::I{"prString", patternDoubleQuote, patternDoubleQuote}));
+
+ std::vector<std::shared_ptr<CNPT>> patternRangeVector{ prComment1, prComment2, prString};
 
  NonOverlappingMatcher nonOverlappingMatcher{patternRangeVector};
 
- std::unique_ptr<std::vector<char>> vectorTf002 { static_cast<std::unique_ptr<std::vector<char>>>(FileToVector("testfiles/002.txt"))};
+ auto vectorTf ( static_cast<std::unique_ptr<std::vector<char>>>(FileToVector("testfiles/002.txt")));
 
- std::unique_ptr<std::vector<MatchRange>> matchedRanges { nonOverlappingMatcher.matchAll(Range{vectorTf002->begin(), vectorTf002->end()})};
+ auto matchedRanges ( nonOverlappingMatcher.matchAll(Range{vectorTf->begin(), vectorTf->end()}));
 
  std::cout << ( 2 == matchedRanges->size()) << std::endl;
 
  {
-  MatchRange & mr{ matchedRanges->at(0)};
+  auto & mr( matchedRanges->at(0));
+  auto data( mr.i().d);
   std::cout << ( "prComment1" == mr.getName()) << std::endl;
-  std::cout << ( "/* \" */" == std::string(mr.i().d.begin.begin, mr.i().d.end.end)) << std::endl;
+  std::cout << data.complete << std::endl;
+  std::cout << ( "/* \" */" == std::string(data.begin.begin, data.end.end)) << std::endl;
  }
 
  {
-  MatchRange & mr{ matchedRanges->at(1)};
+  auto & mr( matchedRanges->at(1));
+  auto data( mr.i().d);
   std::cout << ( "prString" == mr.getName()) << std::endl;
-  std::cout << ( "\" /* \"" == std::string(mr.i().d.begin.begin, mr.i().d.end.end)) << std::endl;
+  std::cout << data.complete << std::endl;
+  std::cout << ( "\" /* \"" == std::string(data.begin.begin, data.end.end)) << std::endl;
  }
+}
+
+void test5()
+{
+ std::cout << __func__ << std::endl;
+
+ using CNPT = const NamedPatternRange;
+
+ auto prComment1( std::make_shared<CNPT>(CNPT::I{"prComment1", std::make_shared<PatternString>( "/*"), std::make_shared<PatternString>( "*/")}));
+
+ auto prComment2( std::make_shared<CNPT>(CNPT::I{"prComment2", std::make_shared<PatternString>( "//"), std::make_shared<PatternString>( "\n")}));
+ auto patternDoubleQuote(std::make_shared<PatternString>("\""));
+ auto prString(std::make_shared<CNPT>(CNPT::I{"prString", patternDoubleQuote, patternDoubleQuote}));
+
+ std::vector<std::shared_ptr<CNPT>> patternRangeVector{ prComment1, prComment2, prString};
+
+ NonOverlappingMatcher nonOverlappingMatcher{patternRangeVector};
+
+ auto vectorTf ( static_cast<std::unique_ptr<std::vector<char>>>(FileToVector("testfiles/003.txt")));
+
+ auto matchedRanges ( nonOverlappingMatcher.matchAll(Range{vectorTf->begin(), vectorTf->end()}));
+
+ std::cout << ( 2 == matchedRanges->size()) << std::endl;
+
+ {
+  auto & mr( matchedRanges->at(0));
+  auto data( mr.i().d);
+  std::cout << ( "prComment1" == mr.getName()) << std::endl;
+  std::cout << data.complete << std::endl;
+  std::cout << ( "/* \" */" == std::string(data.begin.begin, data.end.end)) << std::endl;
+ }
+
+ {
+  auto & mr( matchedRanges->at(1));
+  auto data( mr.i().d);
+  std::cout << ( "prString" == mr.getName()) << std::endl;
+  std::cout << !data.complete << std::endl;
+  std::cout << ( "\" /* X\n" == std::string(data.begin.begin, data.end.end)) << std::endl;
+ }
+}
+
+void test6()
+{
+ std::cout << __func__ << std::endl;
+
+ using CNPT = const NamedPatternRange;
+
+ auto prComment1( std::make_shared<CNPT>(CNPT::I{"prComment1", std::make_shared<PatternString>( "/*"), std::make_shared<PatternString>( "*/")}));
+
+ auto prComment2( std::make_shared<CNPT>(CNPT::I{"prComment2", std::make_shared<PatternString>( "//"), std::make_shared<PatternString>( "\n")}));
+ auto patternDoubleQuoteStart(std::make_shared<PatternString>("\""));
+ auto patternDoubleQuoteEnd(std::make_shared<PatternRegex>("([^\\\\]|^)\"")); 
+
+ auto patternApostrophStart(std::make_shared<PatternString>("'"));
+ auto patternApostrophEnd(std::make_shared<PatternRegex>("([^\\\\]|^)'")); 
+
+ auto prString1(std::make_shared<CNPT>(CNPT::I{"prString1", patternDoubleQuoteStart, patternDoubleQuoteEnd}));
+ auto prString2(std::make_shared<CNPT>(CNPT::I{"prString2", patternApostrophStart, patternApostrophEnd}));
+
+ std::vector<std::shared_ptr<CNPT>> patternRangeVector{ prComment1, prComment2, prString1, prString2};
+
+ NonOverlappingMatcher nonOverlappingMatcher{patternRangeVector};
+
+ auto vectorTf ( static_cast<std::unique_ptr<std::vector<char>>>(FileToVector("testfiles/004.txt")));
+
+ auto matchedRanges ( nonOverlappingMatcher.matchAll(Range{vectorTf->begin(), vectorTf->end()}));
+
+ std::cout << ( 7 == matchedRanges->size()) << std::endl;
+
+ {
+  auto & mr( matchedRanges->at(0));
+  auto data( mr.i().d);
+  std::cout << ( "prComment2" == mr.getName()) << std::endl;
+  std::cout << data.complete << std::endl;
+  std::cout << ( "// /* \" \'\n" == std::string(data.begin.begin, data.end.end)) << std::endl;
+ }
+
+ {
+  auto & mr( matchedRanges->at(1));
+  auto data( mr.i().d);
+  std::cout << ( "prString2" == mr.getName()) << std::endl;
+  std::cout << data.complete << std::endl;
+  std::cout << ( "\'\\\'\'" == std::string(data.begin.begin, data.end.end)) << std::endl;
+ }
+
+ {
+  auto & mr( matchedRanges->at(2));
+  auto data( mr.i().d);
+  std::cout << ( "prString1" == mr.getName()) << std::endl;
+  std::cout << data.complete << std::endl;
+  std::cout << ( "\" \' /* // \\\" \"" == std::string(data.begin.begin, data.end.end)) << std::endl;
+ }
+
+ {
+  auto & mr( matchedRanges->at(3));
+  auto data( mr.i().d);
+  std::cout << ( "prComment1" == mr.getName()) << std::endl;
+  std::cout << data.complete << std::endl;
+  std::cout << ( "/* \" \' // */" == std::string(data.begin.begin, data.end.end)) << std::endl;
+ }
+
+ {
+  auto & mr( matchedRanges->at(4));
+  auto data( mr.i().d);
+  std::cout << ( "prString1" == mr.getName()) << std::endl;
+  std::cout << data.complete << std::endl;
+  std::cout << ( "\"\"" == std::string(data.begin.begin, data.end.end)) << std::endl;
+ }
+
+ {
+  auto & mr( matchedRanges->at(5));
+  auto data( mr.i().d);
+  std::cout << ( "prString2" == mr.getName()) << std::endl;
+  std::cout << data.complete << std::endl;
+  std::cout << ( "''" == std::string(data.begin.begin, data.end.end)) << std::endl;
+ }
+
+ {
+  auto & mr( matchedRanges->at(6));
+  auto data( mr.i().d);
+  std::cout << ( "prString1" == mr.getName()) << std::endl;
+  std::cout << !data.complete << std::endl;
+  std::cout << ( "\" /* X\n" == std::string(data.begin.begin, data.end.end)) << std::endl;
+ }
+
+#if false
+#endif
+
 }
 
 int main( int argc, char** argv)
@@ -240,6 +374,10 @@ int main( int argc, char** argv)
  test3();
  
  test4();
+
+ test5();
+
+ test6();
 
  return 0;
 }
