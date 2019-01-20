@@ -275,9 +275,9 @@ void test5()
  }
 }
 
-void test6()
+void test6( std::string fname)
 {
- std::cout << __func__ << std::endl;
+ std::cout << __func__ << " " << fname << std::endl;
 
  using CNPT = const NamedPatternRange;
 
@@ -297,7 +297,7 @@ void test6()
 
  NonOverlappingMatcher nonOverlappingMatcher{patternRangeVector};
 
- auto vectorTf ( static_cast<std::unique_ptr<std::vector<char>>>(FileToVector("testfiles/004.txt")));
+ auto vectorTf ( static_cast<std::unique_ptr<std::vector<char>>>(FileToVector(fname)));
 
  auto matchedRanges ( nonOverlappingMatcher.matchAll(Range{vectorTf->begin(), vectorTf->end()}));
 
@@ -377,7 +377,11 @@ int main( int argc, char** argv)
 
  test5();
 
- test6();
+ test6("testfiles/004.txt");
+
+ test6("testfiles/005.txt");
+
+ test6("testfiles/006.txt");
 
  return 0;
 }
