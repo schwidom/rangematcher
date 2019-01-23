@@ -1,5 +1,6 @@
 
 #include "FileToVector.hpp"
+#include "InterpreterLua.hpp"
 #include "MatchRange.hpp"
 #include "NamedPatternRange.hpp"
 #include "NamingWeakOrdered.hpp"
@@ -67,7 +68,7 @@ void test()
  std::cout << ( mg3->m_Range.begin == v.begin() + 1 ) << std::endl;
  std::cout << ( mg3->m_Range.end == v.begin() + 4 ) << std::endl;
 
- std::unique_ptr<std::vector<char>> v3{static_cast<std::unique_ptr<std::vector<char>>>(FileToVector("testfiles/001.txt"))};
+ auto v3( FileToVector("testfiles/001.txt").get());
 
  std::unique_ptr<Match> m6{ ps2.match(Range{v3->begin(), v3->end()})}; 
 
@@ -90,7 +91,7 @@ void test2()
  std::shared_ptr<Pattern> patternDoubleQuote{std::make_shared<PatternString>("\"")};
  PatternRange prString{ PatternRange::I{patternDoubleQuote, patternDoubleQuote}};
  
- std::unique_ptr<std::vector<char>> vectorTf002 { static_cast<std::unique_ptr<std::vector<char>>>(FileToVector("testfiles/002.txt"))};
+ auto vectorTf002(FileToVector("testfiles/002.txt").get());
 
  struct Status {
   std::string name;
@@ -150,7 +151,7 @@ void test3()
  NamedPatternRange prString{{"prString", patternDoubleQuote, patternDoubleQuote}};
 
  
- std::unique_ptr<std::vector<char>> vectorTf002 { static_cast<std::unique_ptr<std::vector<char>>>(FileToVector("testfiles/002.txt"))};
+ auto vectorTf002(FileToVector("testfiles/002.txt").get());
 
  struct Status {
   std::unique_ptr<Match> match;
@@ -213,7 +214,7 @@ void test4()
 
  NonOverlappingMatcher nonOverlappingMatcher{patternRangeVector};
 
- auto vectorTf ( static_cast<std::unique_ptr<std::vector<char>>>(FileToVector("testfiles/002.txt")));
+ auto vectorTf( FileToVector("testfiles/002.txt").get());
 
  auto matchedRanges ( nonOverlappingMatcher.matchAll(Range{vectorTf->begin(), vectorTf->end()}));
 
@@ -252,7 +253,7 @@ void test5()
 
  NonOverlappingMatcher nonOverlappingMatcher{patternRangeVector};
 
- auto vectorTf ( static_cast<std::unique_ptr<std::vector<char>>>(FileToVector("testfiles/003.txt")));
+ auto vectorTf( FileToVector("testfiles/003.txt").get());
 
  auto matchedRanges ( nonOverlappingMatcher.matchAll(Range{vectorTf->begin(), vectorTf->end()}));
 
@@ -284,20 +285,22 @@ void test6( std::string fname)
  auto prComment1( std::make_shared<CNPT>(CNPT::I{"prComment1", std::make_shared<PatternString>( "/*"), std::make_shared<PatternString>( "*/")}));
 
  auto prComment2( std::make_shared<CNPT>(CNPT::I{"prComment2", std::make_shared<PatternString>( "//"), std::make_shared<PatternString>( "\n")}));
+
  auto patternDoubleQuoteStart(std::make_shared<PatternString>("\""));
  auto patternDoubleQuoteEnd(std::make_shared<PatternRegex>("([^\\\\]|^)\"")); 
+
+ auto prString1(std::make_shared<CNPT>(CNPT::I{"prString1", patternDoubleQuoteStart, patternDoubleQuoteEnd}));
 
  auto patternApostrophStart(std::make_shared<PatternString>("'"));
  auto patternApostrophEnd(std::make_shared<PatternRegex>("([^\\\\]|^)'")); 
 
- auto prString1(std::make_shared<CNPT>(CNPT::I{"prString1", patternDoubleQuoteStart, patternDoubleQuoteEnd}));
  auto prString2(std::make_shared<CNPT>(CNPT::I{"prString2", patternApostrophStart, patternApostrophEnd}));
 
  std::vector<std::shared_ptr<CNPT>> patternRangeVector{ prComment1, prComment2, prString1, prString2};
 
  NonOverlappingMatcher nonOverlappingMatcher{patternRangeVector};
 
- auto vectorTf ( static_cast<std::unique_ptr<std::vector<char>>>(FileToVector(fname)));
+ auto vectorTf( FileToVector(fname).get());
 
  auto matchedRanges ( nonOverlappingMatcher.matchAll(Range{vectorTf->begin(), vectorTf->end()}));
 
@@ -364,6 +367,13 @@ void test6( std::string fname)
 
 }
 
+void test7()
+{
+ std::cout << __func__ << std::endl;
+
+ InterpreterLua il;
+}
+
 int main( int argc, char** argv)
 {
 
@@ -382,6 +392,8 @@ int main( int argc, char** argv)
  test6("testfiles/005.txt");
 
  test6("testfiles/006.txt");
+
+ test7();
 
  return 0;
 }
