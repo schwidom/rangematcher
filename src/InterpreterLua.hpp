@@ -1,15 +1,13 @@
 #pragma once
 
-#include <lua.hpp>
+#include "LuaBase.hpp"
 
-class InterpreterLua
+class InterpreterLua : public LuaBase
 {
 public:
  InterpreterLua();
 
- ~InterpreterLua();
+ ~InterpreterLua() override;
 
 private:
- lua_State* m_LuaState{nullptr};
-
 };

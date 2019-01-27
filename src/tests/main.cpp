@@ -1,6 +1,8 @@
 
 #include "FileToVector.hpp"
 #include "InterpreterLua.hpp"
+#include "LuaBase.hpp"
+#include "LuaTest.hpp"
 #include "MatchRange.hpp"
 #include "NamedPatternRange.hpp"
 #include "NamingWeakOrdered.hpp"
@@ -372,6 +374,9 @@ void test7()
  std::cout << __func__ << std::endl;
 
  InterpreterLua il;
+ LuaBase lb;
+ 
+ LuaTest().allTests();
 }
 
 int main( int argc, char** argv)
