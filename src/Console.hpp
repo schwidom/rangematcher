@@ -1,6 +1,7 @@
 #pragma once
 
 #include "LuaBase.hpp"
+#include "RangeMatcherMethods4Lua.hpp"
 
 #include <iostream>
 #include <map>
@@ -23,6 +24,8 @@ private:
  LuaBase m_LuaBase{};
 
  bool m_ConsoleQuit{false};
+
+ RangeMatcherMethods4Lua m_RangeMatcherMethods4Lua{};
 
  struct Token : std::string { using std::string::string; };
 

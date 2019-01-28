@@ -1,4 +1,5 @@
 
+#include "Any.hpp"
 #include "FileToVector.hpp"
 #include "InterpreterLua.hpp"
 #include "LuaBase.hpp"
@@ -34,8 +35,8 @@ void test()
 
  PatternVector pv1{v2};
 
- std::unique_ptr<Match> m1{ ps1.match(Range{v.begin(), v.end()})}; // auto geht hier nicht
- std::unique_ptr<Match> m2{ ps2.match(Range{v.begin(), v.end()})}; // auto geht hier nicht
+ std::unique_ptr<Match> m1{ ps1.match(Range{v.begin(), v.end()})}; 
+ std::unique_ptr<Match> m2{ ps2.match(Range{v.begin(), v.end()})}; 
 
  // std::shared_ptr<MatchGot> mg2 = m2->get(); // !matched exception
  
@@ -379,6 +380,71 @@ void test7()
  LuaTest().allTests();
 }
 
+void test8()
+{
+ std::cout << __func__ << std::endl;
+
+ std::vector<AnyBase*> ab;
+ ab.push_back(new Any<std::string>("123"));
+ ab.push_back(new Any<int>(199));
+ std::cout << ( *ab.at(0)->get<std::string>() == "123") << std::endl;
+ std::cout << ( !ab.at(1)->get<std::string>()) << std::endl;
+ std::cout << ( !ab.at(0)->get<int>()) << std::endl;
+ std::cout << ( *ab.at(1)->get<int>() == 199) << std::endl;
+
+ struct B { int i{99};};
+ struct D : B {};
+
+ ab.push_back(new Any<D>());
+
+ std::cout << !!ab.at(2)->get<D>() << std::endl;
+ std::cout << !ab.at(2)->get<B>() << std::endl;
+
+ std::cout << ( 99 == ab.at(2)->get<D>() ->i ) << std::endl;
+
+ {
+
+  Any<D*> * ad = new Any<D*>(new D());
+  ad -> addType<B*>();
+
+  ab.push_back(ad);
+ 
+  int idx = ab.size() - 1;
+
+  std::cout << !!ab.at(idx)->get<D*>() << std::endl;
+  std::cout << !!ab.at(idx)->get<B*>() << std::endl;
+
+  std::cout << ( 99 == (*ab.at(idx)->get<D*>())->i) << std::endl;
+  std::cout << ( 99 == (*ab.at(idx)->get<B*>())->i) << std::endl;
+
+  delete *ad->get<D*>();
+ }
+
+ {
+
+  auto * ad = new Any<std::shared_ptr<D>>(std::make_shared<D>());
+  ad -> addType<std::shared_ptr<B>>();
+
+  ab.push_back(ad);
+ 
+  int idx = ab.size() - 1;
+
+  std::cout << !!ab.at(idx)->get<std::shared_ptr<D>>() << std::endl;
+  std::cout << !!ab.at(idx)->get<std::shared_ptr<B>>() << std::endl;
+
+  std::cout << ( 99 == ab.at(idx)->get<std::shared_ptr<D>>()->get()->i) << std::endl;
+  std::cout << ( 99 == ab.at(idx)->get<std::shared_ptr<B>>()->get()->i) << std::endl;
+
+  delete ad->get<D*>();
+ 
+ }
+
+ for(auto value : ab)
+ {
+  delete value;
+ }
+}
+
 int main( int argc, char** argv)
 {
 
@@ -399,6 +465,8 @@ int main( int argc, char** argv)
  test6("testfiles/006.txt");
 
  test7();
+
+ test8();
 
  return 0;
 }

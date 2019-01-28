@@ -30,6 +30,7 @@ Console::Console(StreamPair streamPair)
  auto & sp = m_StreamPair;
 
  luaL_openlibs( m_LuaBase.getLua());
+ m_RangeMatcherMethods4Lua.propagate(m_LuaBase);
 
  emplaceContextEntries( m_MenuMap);
 
@@ -93,7 +94,11 @@ void Console::interpretLua(StringRange stringRange)
 
  int res = luaL_dostring( m_LuaBase.getLua(), luaCode.c_str());
 
- sp.os << ( 0 == res ) << std::endl;
+ sp.os << ( ( 0 == res ) ? "success" : "error" ) << std::endl;
+ if( 0 != res)
+ {
+  sp.os << m_RangeMatcherMethods4Lua.getLastErrorMessage() << std::endl;
+ }
 }
 
 void Console::interpretLuaP(StringRange stringRange)
