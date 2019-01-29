@@ -6,7 +6,7 @@ MatchRange::MatchRange(const MatchRange::I & i)
 {
 }
 
-const MatchRange::I & MatchRange::i()
+const MatchRange::I & MatchRange::i() const
 {
  return m_I;
 }

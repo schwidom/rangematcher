@@ -134,7 +134,6 @@ void test005()
 
 }
 
-
 void LuaTest::allTests()
 {
  test001();

@@ -13,6 +13,7 @@
 #include "PatternString.hpp"
 #include "PatternVector.hpp"
 #include "Range.hpp"
+#include "RangeMatcherMethods4Lua.hpp"
 
 #include <algorithm> // sort
 #include <iostream>
@@ -394,6 +395,7 @@ void test8()
 
  struct B { int i{99};};
  struct D : B {};
+ struct E : D {};
 
  ab.push_back(new Any<D>());
 
@@ -422,20 +424,22 @@ void test8()
 
  {
 
-  auto * ad = new Any<std::shared_ptr<D>>(std::make_shared<D>());
-  ad -> addType<std::shared_ptr<B>>();
+  auto * ad = new Any<std::shared_ptr<E>>(std::make_shared<E>());
+  ad -> addTypes<std::shared_ptr<B>,std::shared_ptr<D>>();
 
   ab.push_back(ad);
  
   int idx = ab.size() - 1;
 
+  std::cout << !!ab.at(idx)->get<std::shared_ptr<E>>() << std::endl;
   std::cout << !!ab.at(idx)->get<std::shared_ptr<D>>() << std::endl;
   std::cout << !!ab.at(idx)->get<std::shared_ptr<B>>() << std::endl;
 
+  std::cout << ( 99 == ab.at(idx)->get<std::shared_ptr<E>>()->get()->i) << std::endl;
   std::cout << ( 99 == ab.at(idx)->get<std::shared_ptr<D>>()->get()->i) << std::endl;
   std::cout << ( 99 == ab.at(idx)->get<std::shared_ptr<B>>()->get()->i) << std::endl;
 
-  delete ad->get<D*>();
+  delete ad->get<E*>();
  
  }
 
@@ -443,6 +447,24 @@ void test8()
  {
   delete value;
  }
+}
+
+void test9()
+{
+ std::cout << __func__ << std::endl;
+
+ LuaBase lb{};
+
+ luaL_openlibs( lb.getLua());
+
+ RangeMatcherMethods4Lua rangeMatcherMethods4Lua{};
+
+ rangeMatcherMethods4Lua.propagate(lb);
+
+ int res = luaL_dofile( lb.getLua(), "testfiles/009_script.lua");
+
+ std::cout << (0 == res) << std::endl;
+
 }
 
 int main( int argc, char** argv)
@@ -467,6 +489,8 @@ int main( int argc, char** argv)
  test7();
 
  test8();
+
+ test9();
 
  return 0;
 }

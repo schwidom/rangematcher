@@ -93,6 +93,17 @@ public:
   m_TypeidNames2ValuesMap[typeIndex] = std::make_unique<Any<T2>>(tConverted);
  }
 
+ template <class T2> void addTypes ()
+ {
+  addType<T2>();
+ }
+
+ template <class T2, class Tp1, class ... Tp2> void addTypes ()
+ {
+  addType<T2>();
+  addTypes<Tp1, Tp2...>();
+ }
+
 private:
  T m_T;
 

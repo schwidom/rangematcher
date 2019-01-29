@@ -22,7 +22,7 @@ public:
 
  MatchRange( const I & i);
 
- const I & i();
+ const I & i() const;
 
 private:
  

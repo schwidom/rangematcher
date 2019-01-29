@@ -17,5 +17,7 @@ public:
  const std::string & getLastErrorMessage() const;
 
 private:
+
+ bool m_Propagated{false};
 };
 
