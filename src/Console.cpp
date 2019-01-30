@@ -39,7 +39,8 @@ Console::Console(StreamPair streamPair)
  m_MenuMap.emplace( Token{"l"}, Menu{ "execute lua", {}, BIND( interpretLua)});
  m_MenuMap.emplace( Token{"p"}, Menu{ "execute lua inside print()", {}, BIND( interpretLuaP)});
 
- std::string prompt{"<< "};
+ std::string prompt1{"<< "};
+ std::string prompt2{"++ "};
 
  sp.os << shortHelp << std::endl;
 
@@ -47,7 +48,7 @@ Console::Console(StreamPair streamPair)
  {
   std::string line;
   
-  sp.os << prompt;
+  sp.os << ( m_PreLine.empty() ? prompt1 : prompt2 );
   std::getline( sp.is, line);
 
   if( sp.is.eof()){ break;}
@@ -205,6 +206,7 @@ the rangematcher console:
 input is interpreted linewise
 if a line begins or ends with a hash sign (#) then the input is aborted
 if a line begins and ends with a hash sign (#) then the input is accepted as without beginning and ending hash signs
+if a line ends with a backslash (\) then the line gets extended by the end of line sign (\n) and the second line
 the rangematcher datastructures are defined via lua
 all lines beginning with l or p precedes lua commands
 a question mark (?) at any menupoint including the root menu shows the menu contents
@@ -212,12 +214,21 @@ a question mark (?) at any menupoint including the root menu shows the menu cont
  )help") << std::endl;
 }
 
-void Console::interpretRoot(StringRange stringRange)
+void Console::interpretRoot(StringRange stringRangeNext)
 {
  m_DryRun = false;
  m_LastChoosedMenuMap = nullptr;
 
+ m_PreLine += std::string(stringRangeNext.begin, stringRangeNext.end);
+
+ StringRange stringRange{ m_PreLine.begin(), m_PreLine.end()};
+
  if( stringRange.begin == stringRange.end){ return;}
+
+ if( '\\' == *(stringRange.end - 1)) {
+  *(stringRange.end - 1) = '\n';
+  return; 
+ }
 
  bool aborted{false};
 
@@ -237,11 +248,13 @@ void Console::interpretRoot(StringRange stringRange)
 
  if( aborted)
  {
+  m_PreLine.clear();
   m_StreamPair.os << "aborted" << std::endl;
   return;
  }
 
  interpretNode( m_MenuMap, stringRange);
+ m_PreLine.clear();
 }
 
 void Console::interpretNode(MenuMap & menuMap, StringRange stringRange)

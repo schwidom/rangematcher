@@ -71,4 +71,6 @@ private:
  Token m_LastToken{};
  
  bool m_DryRun{false};
+ 
+ std::string m_PreLine{};
 };
