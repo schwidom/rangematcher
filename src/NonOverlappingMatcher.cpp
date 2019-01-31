@@ -9,6 +9,8 @@
 
 #include <csignal>
 
+#define TYPE std::vector<char>
+
 NonOverlappingMatcher::NonOverlappingMatcher(const std::vector<std::shared_ptr<const NamedPatternRange>> & patternRange)
 : m_PatternRange(patternRange)
 {
@@ -17,12 +19,12 @@ NonOverlappingMatcher::NonOverlappingMatcher(const std::vector<std::shared_ptr<c
 namespace {
 
  struct Status {
-  std::unique_ptr<Match> match;
+  std::unique_ptr<Match<TYPE>> match;
  };
 
  using P = std::pair<NamedPatternRange const * , Status>; // s56plqg7n2 
 
- std::unique_ptr<Match> findOpeningMatch( std::vector<P> & v, Range range) 
+ std::unique_ptr<Match<TYPE>> findOpeningMatch( std::vector<P> & v, Range<TYPE> range) 
  {
   for( auto & value : v) {
 
@@ -30,7 +32,7 @@ namespace {
     || ( value.second.match->matched() && value.second.match->get()->m_Range.begin < range.begin)
     ) // NOTE: this condition is an optimization, if in doubt, replace with true
    {
-    std::unique_ptr<Match> match { value.first->i().von->match(range)};
+    std::unique_ptr<Match<TYPE>> match { value.first->i().von->match(range)};
     value.second.match = std::move(match);
    }
   }
@@ -54,17 +56,17 @@ namespace {
   return std::move( v.front().second.match); // pen45x1itp 
  }
 
- std::unique_ptr<Match> findClosingMatch( const std::vector<P> & v, Range range)
+ std::unique_ptr<Match<TYPE>> findClosingMatch( const std::vector<P> & v, Range<TYPE> range)
  {
   return v.at(0).first->i().bis->match(range);
  }
 }
 
-std::unique_ptr<std::vector<MatchRange>> NonOverlappingMatcher::matchAll(Range range) const
+std::unique_ptr<std::vector<MatchRange<TYPE>>> NonOverlappingMatcher::matchAll(Range<TYPE> range) const
 {
  std::vector<P> v;
 
- std::unique_ptr<std::vector<MatchRange>> ret{ std::make_unique<std::vector<MatchRange>>()};
+ std::unique_ptr<std::vector<MatchRange<TYPE>>> ret{ std::make_unique<std::vector<MatchRange<TYPE>>>()};
 
  if( 0==m_PatternRange.size()){
   return std::move(ret); 
@@ -75,17 +77,17 @@ std::unique_ptr<std::vector<MatchRange>> NonOverlappingMatcher::matchAll(Range r
   v.push_back(P(namedPatternRange.get(), Status{})); // pen45x1itp
  }
 
- Range currentRange(range);
+ Range<TYPE> currentRange(range);
 
  while( true)
  {
 
   // bicwwvbdnj 
-  MatchRange::I matchRangeI{};
+  MatchRange<TYPE>::I matchRangeI{};
 
   // find first match
 
-  std::unique_ptr<Match> matchOpen{ findOpeningMatch( v, currentRange)};
+  std::unique_ptr<Match<TYPE>> matchOpen{ findOpeningMatch( v, currentRange)};
 
   if( !matchOpen->matched()){
    break; // no further matches
@@ -95,7 +97,7 @@ std::unique_ptr<std::vector<MatchRange>> NonOverlappingMatcher::matchAll(Range r
   matchRangeI.namingWeakOrdered = {v.at(0).first->getName()};
   matchRangeI.d.begin = matchOpen->get()->m_Range;
   matchRangeI.d.complete = false;
-  matchRangeI.d.end = Range{ range.end, range.end};
+  matchRangeI.d.end = Range<TYPE>{ range.end, range.end};
 
   std::function<bool()> currentRangeCheck{ [&currentRange, &range]() -> bool {
 
@@ -121,7 +123,7 @@ std::unique_ptr<std::vector<MatchRange>> NonOverlappingMatcher::matchAll(Range r
 
   // seek closing match
 
-  std::unique_ptr<Match> matchClose{ findClosingMatch( v, currentRange)};
+  std::unique_ptr<Match<TYPE>> matchClose{ findClosingMatch( v, currentRange)};
   
   if( !matchClose->matched()){
    ret->emplace_back(matchRangeI);

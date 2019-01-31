@@ -9,14 +9,16 @@
 #include <string>
 #include <vector>
 
+#define TYPE std::vector<char>
+
 class PatternString : public Pattern
 {
 private:
 
- class MatchString : public Match
+ class MatchString : public Match<TYPE>
  {
   public:
-   MatchString( Range range, const std::shared_ptr<const std::string> pattern);
+   MatchString( Range<TYPE> range, const std::shared_ptr<const std::string> pattern);
 
    virtual ~MatchString() override = default;
  };
@@ -27,9 +29,12 @@ public:
 
  virtual ~PatternString() override = default;
 
- std::unique_ptr<Match> match( Range range) const override;
+ std::unique_ptr<Match<TYPE>> match( Range<TYPE> range) const override;
 
 private:
 
  const std::shared_ptr<const std::string> m_Pattern;
 };
+
+#undef TYPE
+

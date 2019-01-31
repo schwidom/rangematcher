@@ -21,6 +21,8 @@
 #include <utility>
 #include <vector>
 
+#define TYPE std::vector<char>
+
 void test()
 {
 
@@ -36,24 +38,24 @@ void test()
 
  PatternVector pv1{v2};
 
- std::unique_ptr<Match> m1{ ps1.match(Range{v.begin(), v.end()})}; 
- std::unique_ptr<Match> m2{ ps2.match(Range{v.begin(), v.end()})}; 
+ std::unique_ptr<Match<TYPE>> m1{ ps1.match(Range<TYPE>{v.begin(), v.end()})}; 
+ std::unique_ptr<Match<TYPE>> m2{ ps2.match(Range<TYPE>{v.begin(), v.end()})}; 
 
- // std::shared_ptr<MatchGot> mg2 = m2->get(); // !matched exception
+ // std::shared_ptr<MatchGot<TYPE>> mg2 = m2->get(); // !matched exception
  
  std::cout << ! m2->matched() << std::endl;
  std::cout << m1->matched() << std::endl;
 
- std::shared_ptr<const MatchGot> mg1 = m1->get();
+ std::shared_ptr<const MatchGot<TYPE>> mg1 = m1->get();
 
  std::cout << ( mg1->m_Range.begin == v.begin() + 1 ) << std::endl;
  std::cout << ( mg1->m_Range.end == v.begin() + 4 ) << std::endl;
 
- std::unique_ptr<Match> m3{ pv1.match(Range{v.begin(), v.end()})};
+ std::unique_ptr<Match<TYPE>> m3{ pv1.match(Range<TYPE>{v.begin(), v.end()})};
 
  std::cout << m3->matched() << std::endl;
 
- std::shared_ptr<const MatchGot> mg2 = m3->get();
+ std::shared_ptr<const MatchGot<TYPE>> mg2 = m3->get();
 
  std::cout << ( mg2->m_Range.begin == v.begin() + 2 ) << std::endl;
  std::cout << ( mg2->m_Range.end == v.begin() + 4 ) << std::endl;
@@ -61,24 +63,24 @@ void test()
  PatternRegex pr1{"a.*c"};
  PatternRegex pr2{"c.*a"};
 
- std::unique_ptr<Match> m4{ pr1.match(Range{v.begin(), v.end()})};
- std::unique_ptr<Match> m5{ pr2.match(Range{v.begin(), v.end()})};
+ std::unique_ptr<Match<TYPE>> m4{ pr1.match(Range<TYPE>{v.begin(), v.end()})};
+ std::unique_ptr<Match<TYPE>> m5{ pr2.match(Range<TYPE>{v.begin(), v.end()})};
 
  std::cout << ! m5->matched() << std::endl;
  std::cout << m4->matched() << std::endl;
 
- std::shared_ptr<const MatchGot> mg3 = m4->get();
+ std::shared_ptr<const MatchGot<TYPE>> mg3 = m4->get();
 
  std::cout << ( mg3->m_Range.begin == v.begin() + 1 ) << std::endl;
  std::cout << ( mg3->m_Range.end == v.begin() + 4 ) << std::endl;
 
  auto v3( FileToVector("testfiles/001.txt").get());
 
- std::unique_ptr<Match> m6{ ps2.match(Range{v3->begin(), v3->end()})}; 
+ std::unique_ptr<Match<TYPE>> m6{ ps2.match(Range<TYPE>{v3->begin(), v3->end()})}; 
 
  std::cout << m6->matched() << std::endl;
 
- std::shared_ptr<const MatchGot> mg4 = m6->get();
+ std::shared_ptr<const MatchGot<TYPE>> mg4 = m6->get();
 
  std::cout << ( mg4->m_Range.begin == v3->begin() + 1 ) << std::endl;
  std::cout << ( mg4->m_Range.end == v3->begin() + 4 ) << std::endl;
@@ -99,7 +101,7 @@ void test2()
 
  struct Status {
   std::string name;
-  std::unique_ptr<Match> match;
+  std::unique_ptr<Match<TYPE>> match;
  };
 
  using P = std::pair<PatternRange * , Status>;
@@ -111,7 +113,7 @@ void test2()
  v.push_back(P(&prString, Status{"prString"}));
 
  for( auto & value : v) {
-  std::unique_ptr<Match> match { value.first->i().von->match(Range{vectorTf002->begin(), vectorTf002->end()})};
+  std::unique_ptr<Match<TYPE>> match { value.first->i().von->match(Range<TYPE>{vectorTf002->begin(), vectorTf002->end()})};
   value.second.match = std::move(match);
  }
 
@@ -158,7 +160,7 @@ void test3()
  auto vectorTf002(FileToVector("testfiles/002.txt").get());
 
  struct Status {
-  std::unique_ptr<Match> match;
+  std::unique_ptr<Match<TYPE>> match;
  };
 
  using P = std::pair<NamedPatternRange * , Status>;
@@ -170,7 +172,7 @@ void test3()
  v.push_back(P(&prString, Status{}));
 
  for( auto & value : v) {
-  std::unique_ptr<Match> match { value.first->i().von->match(Range{vectorTf002->begin(), vectorTf002->end()})};
+  std::unique_ptr<Match<TYPE>> match { value.first->i().von->match(Range<TYPE>{vectorTf002->begin(), vectorTf002->end()})};
   value.second.match = std::move(match);
  }
 
@@ -220,7 +222,7 @@ void test4()
 
  auto vectorTf( FileToVector("testfiles/002.txt").get());
 
- auto matchedRanges ( nonOverlappingMatcher.matchAll(Range{vectorTf->begin(), vectorTf->end()}));
+ auto matchedRanges ( nonOverlappingMatcher.matchAll(Range<TYPE>{vectorTf->begin(), vectorTf->end()}));
 
  std::cout << ( 2 == matchedRanges->size()) << std::endl;
 
@@ -259,7 +261,7 @@ void test5()
 
  auto vectorTf( FileToVector("testfiles/003.txt").get());
 
- auto matchedRanges ( nonOverlappingMatcher.matchAll(Range{vectorTf->begin(), vectorTf->end()}));
+ auto matchedRanges ( nonOverlappingMatcher.matchAll(Range<TYPE>{vectorTf->begin(), vectorTf->end()}));
 
  std::cout << ( 2 == matchedRanges->size()) << std::endl;
 
@@ -306,7 +308,7 @@ void test6( std::string fname)
 
  auto vectorTf( FileToVector(fname).get());
 
- auto matchedRanges ( nonOverlappingMatcher.matchAll(Range{vectorTf->begin(), vectorTf->end()}));
+ auto matchedRanges ( nonOverlappingMatcher.matchAll(Range<TYPE>{vectorTf->begin(), vectorTf->end()}));
 
  std::cout << ( 7 == matchedRanges->size()) << std::endl;
 

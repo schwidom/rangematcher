@@ -18,6 +18,7 @@
 
 #include <iostream>
 
+#define TYPE std::vector<char>
 
 namespace
 {
@@ -312,15 +313,15 @@ namespace
    raiseLuaError( L, "wrong type at index " + std::to_string(fileVectorInt) + " argument : " + std::to_string( 2));
   }
 
-  std::shared_ptr<std::vector<MatchRange>> matchedRanges ( (*nonOverlappingMatcher)->matchAll(Range{(*fileVector)->begin(), (*fileVector)->end()}));
+  std::shared_ptr<std::vector<MatchRange<TYPE>>> matchedRanges ( (*nonOverlappingMatcher)->matchAll(Range<TYPE>{(*fileVector)->begin(), (*fileVector)->end()}));
 
   std::shared_ptr<std::vector<MatchRangeRelative>> matchedRangesRelative{std::make_shared<std::vector<MatchRangeRelative>>()};
  
   for( const auto & value : *matchedRanges)
   {
    // matchedRangesRelative->emplace_back({"ox"});
-   const MatchRange::I & i(value.i());
-   const MatchRange::D & d(i.d);
+   const MatchRange<TYPE>::I & i(value.i());
+   const MatchRange<TYPE>::D & d(i.d);
    // matchedRangesRelative->push_back(MatchRangeRelative{i.namingWeakOrdered.name});
    matchedRangesRelative->push_back(MatchRangeRelative{value.getName()
    , d.begin.begin - (*fileVector)->begin()
@@ -332,8 +333,8 @@ namespace
  
 /* // TODO :
   std::transform(matchedRanges->begin(), matchedRanges->end(), std::back_inserter(matchedRangesRelative->end()), []
-   (MatchRange & matchRange){
-   MatchRange::I i{matchRange.i()};
+   (MatchRange<TYPE> & matchRange){
+   MatchRange<TYPE>::I i{matchRange.i()};
    return MatchRangeRelative{i.d().begin - fileVector.begin()};
   });
 */

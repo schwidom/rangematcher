@@ -3,15 +3,16 @@
 #include "NamingWeakOrdered.hpp"
 #include "Range.hpp"
 
+template<class T>
 class MatchRange : public NamingWeakOrdered
 {
 public:
 
  struct D
  {
-  Range begin;
+  Range<T> begin;
   bool complete;
-  Range end;
+  Range<T> end;
  };
 
  struct I
@@ -20,9 +21,17 @@ public:
   D d;
  };
 
- MatchRange( const I & i);
+ MatchRange( const I & i)
+ : NamingWeakOrdered(i.namingWeakOrdered)
+ , m_I(i)
+ {
+ }
 
- const I & i() const;
+ const MatchRange::I & i() const
+ {
+  return m_I;
+ }
+
 
 private:
  

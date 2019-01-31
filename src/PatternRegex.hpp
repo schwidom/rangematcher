@@ -10,14 +10,16 @@
 #include <string>
 #include <vector>
 
+#define TYPE std::vector<char>
+
 class PatternRegex : public Pattern
 {
 private:
 
- class MatchRegex : public Match
+ class MatchRegex : public Match<TYPE>
  {
   public:
-   MatchRegex( Range range, const std::shared_ptr<const std::regex> regex);
+   MatchRegex( Range<TYPE> range, const std::shared_ptr<const std::regex> regex);
 
    virtual ~MatchRegex() override = default;
  };
@@ -30,10 +32,12 @@ public:
 
  virtual ~PatternRegex() override = default;
 
- std::unique_ptr<Match> match( Range range) const override;
+ std::unique_ptr<Match<TYPE>> match( Range<TYPE> range) const override;
 
 private:
 
  const std::shared_ptr<const std::string> m_Pattern;
  const std::shared_ptr<const std::regex> m_Regex;
 };
+
+#undef TYPE

@@ -4,9 +4,10 @@
 
 #include <vector>
 
+template<class T>
 class MatchGot {
 public:
- MatchGot( Range range);
+ MatchGot( Range<T> range) : m_Range(range) { }
 
- Range m_Range;
+ Range<T> m_Range;
 };
