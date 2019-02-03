@@ -10,7 +10,7 @@ class RangeMatcherMethods4Lua
 {
 public:
 
- RangeMatcherMethods4Lua();
+ RangeMatcherMethods4Lua(); // TODO : StreamPair
 
  void propagate(LuaBase & luaBase);
 

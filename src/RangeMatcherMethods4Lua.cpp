@@ -12,6 +12,10 @@
 #include <functional> // bind
 #include <iterator> // back_inserter
 
+// collections
+#include <map>
+#include <vector>
+
 #include <stdexcept> // runtime_error
 
 #include <limits> // std::numeric_limits
@@ -22,10 +26,13 @@
 
 namespace
 {
+ bool debug{false};
+
  RangeMatcherMethods4Lua *singleton{nullptr};
  std::vector<std::unique_ptr<AnyBase>> vectorOfObjects{};
  std::string lastErrorMessage{};
  std::vector<std::string> vectorOfRegisteredLuaFunctions{};
+ std::map<std::string,std::string> mapOfHelpOfRegisteredLuaFunctions{};
 
  void raiseLuaError( lua_State * L, std::string msg)
  {
@@ -77,7 +84,7 @@ namespace
   {
    std::string stringOfInterest{lua_tostring(L, i + 1)};
 
-   std::cout << "stringOfInterest " << stringOfInterest << std::endl;
+   if( debug){ std::cout << "stringOfInterest " << stringOfInterest << std::endl;}
 
    std::unique_ptr<Any<T>> pattern(std::make_unique<Any<T>>(creator(stringOfInterest)));
 
@@ -130,7 +137,7 @@ namespace
 
   lua_pop(L, numberOfArguments);
 
-  std::cout << "nameString " << nameString << std::endl;
+  if( debug){ std::cout << "nameString " << nameString << std::endl;}
 
   auto * patternVon(vectorOfObjects.at(patternVonInt)->get<std::shared_ptr<Pattern>>());
   auto * patternBis(vectorOfObjects.at(patternBisInt)->get<std::shared_ptr<Pattern>>());
@@ -224,7 +231,7 @@ namespace
   return 1;
  }
 
- int rmFunctions(lua_State * L)
+ int rmFunctions(lua_State * L) // TODO : optional regexp parameter 
  {
   lastErrorMessage = "";
 
@@ -237,6 +244,36 @@ namespace
   }
 
   return vectorOfRegisteredLuaFunctions.size();
+ }
+
+ int rmHelp(lua_State * L) // TODO : optional regexp parameter or help menu
+ {
+  lastErrorMessage = "";
+
+  int numberOfArguments{0};
+  chkArguments( L, numberOfArguments, __func__);
+ 
+  for( const auto & key : vectorOfRegisteredLuaFunctions)
+  {
+   const auto & value ( mapOfHelpOfRegisteredLuaFunctions.at(key));
+   std::cout << key << " ... " << value << std::endl;
+  }
+
+  return 0;
+ }
+
+ int rmToggleDebug(lua_State * L) 
+ {
+  lastErrorMessage = "";
+
+  int numberOfArguments{0};
+  chkArguments( L, numberOfArguments, __func__);
+ 
+  debug = !debug;
+
+  std::cout << "lua debug is " << ( debug ? "on" : "off") << std::endl;
+
+  return 0;
  }
 
  int rmClear(lua_State * L)
@@ -261,7 +298,7 @@ namespace
   {
    std::string stringOfInterest{lua_tostring(L, i + 1)};
 
-   std::cout << "stringOfInterest " << stringOfInterest << std::endl;
+   if( debug){ std::cout << "stringOfInterest " << stringOfInterest << std::endl;}
 
    std::shared_ptr<std::vector<char>> fileVector( FileToVector(stringOfInterest).get());
 
@@ -390,24 +427,33 @@ void RangeMatcherMethods4Lua::propagate(LuaBase & luaBase)
  auto * L( luaBase.getLua());
 
  decltype(vectorOfRegisteredLuaFunctions) * vorlf = &vectorOfRegisteredLuaFunctions;
+ decltype(mapOfHelpOfRegisteredLuaFunctions) * mohorlf = &mapOfHelpOfRegisteredLuaFunctions;
 
- std::function<void(const char * functionName, lua_CFunction function)> registerFunction{ [L, vorlf](const char * functionName, lua_CFunction functionCall) {
+ std::function<void(const char * functionName, lua_CFunction function, std::string helpString)>
+
+  registerFunction{ [L, vorlf, mohorlf](const char * functionName, lua_CFunction functionCall, std::string helpString) {
+
   lua_register( L, functionName, functionCall);
   vorlf->emplace_back(functionName);
+  mohorlf->emplace(functionName, helpString);
  }};
 
-#define REGISTER(X) registerFunction( #X, X);
- REGISTER( rmClear);
- REGISTER( rmFileRead);
- REGISTER( rmFunctions);
- REGISTER( rmMatchRanges);
- REGISTER( rmMatchRanges2Lua);
- REGISTER( rmNamedPatternRange);
- REGISTER( rmNamedPatternRangeVector);
- REGISTER( rmNextObjectIndex);
- REGISTER( rmNonOverlappingMatcher);
- REGISTER( rmPatternRegex);
- REGISTER( rmPatternString);
+#define REGISTER(X, Y) registerFunction( #X, X, Y);
+
+ REGISTER( rmClear, "clears the variables vector");
+ REGISTER( rmNextObjectIndex, " outputs the next index of the variables vector");
+
+ REGISTER( rmFileRead, "reads a file");
+ REGISTER( rmFunctions, "returns all function names");
+ REGISTER( rmHelp, "outputs help");
+ REGISTER( rmMatchRanges, "creates a vector of match ranges from a non overlapping matcher");
+ REGISTER( rmMatchRanges2Lua, "converts the match ranges to lua datatypes");
+ REGISTER( rmNamedPatternRange, "a named pattern range, consists of a name and 2 pattern");
+ REGISTER( rmNamedPatternRangeVector, "a vector of named pattern ranges");
+ REGISTER( rmNonOverlappingMatcher, "creates a non overlapping matcher from all given pattern ranges ");
+ REGISTER( rmPatternRegex, "initializes a regular expression object");
+ REGISTER( rmPatternString, "initializes a pattern string object");
+ REGISTER( rmToggleDebug, "toggles the debug flag and outputs its state");
 #undef REGISTER
 
  m_Propagated = true;

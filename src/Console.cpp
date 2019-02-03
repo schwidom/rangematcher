@@ -207,9 +207,10 @@ input is interpreted linewise
 if a line begins or ends with a hash sign (#) then the input is aborted
 if a line begins and ends with a hash sign (#) then the input is accepted as without beginning and ending hash signs
 if a line ends with a backslash (\) then the line gets extended by the end of line sign (\n) and the second line
-the rangematcher datastructures are defined via lua
-all lines beginning with l or p precedes lua commands
+the rangematcher is controlled by lua commands
+all lines beginning with l or p precedes lua commands, p sets the command inside 'print( ... )'
 a question mark (?) at any menupoint including the root menu shows the menu contents
+l rmHelp() ... shows the help for the lua interface
 
  )help") << std::endl;
 }
