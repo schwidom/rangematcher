@@ -68,6 +68,8 @@ std::unique_ptr<std::vector<MatchRange<TYPE>>> NonOverlappingMatcher::matchAll(R
 
  std::unique_ptr<std::vector<MatchRange<TYPE>>> ret{ std::make_unique<std::vector<MatchRange<TYPE>>>()};
 
+ ret->emplace_back(MatchRange<TYPE>::I{"initial-element-jc3jvchtrz", MatchRange<TYPE>::D{Range<TYPE>{range.begin, range.begin}, true, Range<TYPE>{range.end, range.end}}});
+
  if( 0==m_PatternRange.size()){
   return std::move(ret); 
  }

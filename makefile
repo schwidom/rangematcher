@@ -14,6 +14,7 @@ help:
 	@echo "build-all" $(foreach B, $(BUILDTYPES), build-all-exe-$(B)) $(foreach E, $(EXECUTABLES), build-all-bld-$(E))
 	@echo $(foreach E, $(EXECUTABLES), $(foreach B, $(BUILDTYPES), build-$(B)-$(E)))
 	@echo $(foreach R, run gdb val, $(foreach E, $(EXECUTABLES), $(foreach B, $(BUILDTYPES), $(R)-$(B)-$(E))))
+	@echo doxygen clean-doxygen
 
 all : testhpp tags build-all
 
@@ -24,7 +25,7 @@ all-release : testhpp tags release
 testhpp : 
 	dev_bin/testhpp.sh
 
-clean-all : clean-tags clean-debug clean-release
+clean-all : clean-tags clean-debug clean-release clean-doxygen
 
 clean-tags :
 	rm -vrf tags
@@ -32,8 +33,18 @@ clean-tags :
 clean-% :
 	rm -vrf cmake-$*/cmake-files
 
+clean-doxygen :
+	rm -rf doxygen
+
 tags : src/*.hpp src/*.cpp src/main/*.cpp src/tests/*.cpp
 	ctags-exuberant --extra=+q --fields=+a+i --recurse --c++-kinds=+p .
+
+doxygen : src/* src/*/* | doxygen-dir
+	cd doxygen; doxygen rmDoxygenConfigFile.txt
+	
+doxygen-dir :
+	mkdir -p doxygen
+	dev_bin/setupDoxygen.sh
 
 build-all : $(foreach E, $(EXECUTABLES), build-all-bld-$(E))
 	true

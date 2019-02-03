@@ -13,7 +13,7 @@ file1 = rmFileRead("testfiles/006.txt")
 result = rmMatchRanges(nonOverlappingMatcher, file1)
 -- print( rmMatchRanges2Lua(result))
 
-expectedResults = { "comment2", 0, 2, 9, 10, "string2", 10, 11, 12, 14, "string1", 14, 15, 26, 28, "comment1", 28, 30, 38, 40, "string1", 40, 41, 41, 42, "string2", 42, 43, 43, 44, "string1", 44, 45, 51, 51 }
+expectedResults = { "initial-element-jc3jvchtrz", 0, 0, 51, 51, "comment2", 0, 2, 9, 10, "string2", 10, 11, 12, 14, "string1", 14, 15, 26, 28, "comment1", 28, 30, 38, 40, "string1", 40, 41, 41, 42, "string2", 42, 43, 43, 44, "string1", 44, 45, 51, 51 }
 
 gotResults = { rmMatchRanges2Lua(result) }
 

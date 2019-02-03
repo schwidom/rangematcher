@@ -278,15 +278,6 @@ namespace
   return numberOfArguments;
  }
 
- struct MatchRangeRelative
- {
-  std::string name;
-  long bb;
-  long be;
-  long eb;
-  long ee;
- };
-
  int rmMatchRanges(lua_State * L)
  {
   lastErrorMessage = "";
@@ -314,21 +305,22 @@ namespace
   }
 
   std::shared_ptr<std::vector<MatchRange<TYPE>>> matchedRanges ( (*nonOverlappingMatcher)->matchAll(Range<TYPE>{(*fileVector)->begin(), (*fileVector)->end()}));
-
-  std::shared_ptr<std::vector<MatchRangeRelative>> matchedRangesRelative{std::make_shared<std::vector<MatchRangeRelative>>()};
  
+  std::shared_ptr<std::vector<MatchRange<long>>> matchedRangesRelative{std::make_shared<std::vector<MatchRange<long>>>()};
+
   for( const auto & value : *matchedRanges)
   {
-   // matchedRangesRelative->emplace_back({"ox"});
+   const MatchRange<TYPE>::I & iRoot(matchedRanges->at(0).i());
    const MatchRange<TYPE>::I & i(value.i());
-   const MatchRange<TYPE>::D & d(i.d);
-   // matchedRangesRelative->push_back(MatchRangeRelative{i.namingWeakOrdered.name});
-   matchedRangesRelative->push_back(MatchRangeRelative{value.getName()
-   , d.begin.begin - (*fileVector)->begin()
-   , d.begin.end - (*fileVector)->begin()
-   , d.end.begin - (*fileVector)->begin()
-   , d.end.end - (*fileVector)->begin()
-  });
+   MatchRange<long>::I i2;
+
+   i2.namingWeakOrdered = i.namingWeakOrdered;
+   i2.d.begin = Range<long>( iRoot.d.begin.begin, i.d.begin);
+   i2.d.complete = i.d.complete;
+   i2.d.end = Range<long>( iRoot.d.begin.begin, i.d.end);
+
+   // matchedRangesRelative->push_back(MatchRange<long>{ });
+   matchedRangesRelative->push_back(i2);
   }
  
 /* // TODO :
@@ -351,13 +343,13 @@ namespace
   lastErrorMessage = "";
 
   int numberOfArguments = 1;
-  chkArguments( L, numberOfArguments, __func__); // std::vector<MatchRangeRelative>
+  chkArguments( L, numberOfArguments, __func__); // std::vector<MatchRange<long>>
 
   long matchRangesIdx{lua_tointeger(L, 1)};
 
   lua_pop(L, numberOfArguments);
 
-  auto * matchedRangesRelative(vectorOfObjects.at(matchRangesIdx)->get<std::shared_ptr<std::vector<MatchRangeRelative>>>());
+  auto * matchedRangesRelative(vectorOfObjects.at(matchRangesIdx)->get<std::shared_ptr<std::vector<MatchRange<long>>>>());
 
   if( !matchedRangesRelative)
   {
@@ -366,12 +358,13 @@ namespace
 
   for( const auto & matchRange : **matchedRangesRelative)
   {
+   const MatchRange<long>::I & i (matchRange.i());
    lua_checkstack( L, 5); // TODO check
-   lua_pushstring(L, matchRange.name.c_str());
-   lua_pushinteger(L, matchRange.bb);
-   lua_pushinteger(L, matchRange.be);
-   lua_pushinteger(L, matchRange.eb);
-   lua_pushinteger(L, matchRange.ee);
+   lua_pushstring(L, i.namingWeakOrdered.name.c_str());
+   lua_pushinteger(L, i.d.begin.begin);
+   lua_pushinteger(L, i.d.begin.end);
+   lua_pushinteger(L, i.d.end.begin);
+   lua_pushinteger(L, i.d.end.end);
   }
 
   return (*matchedRangesRelative)->size() * 5;
