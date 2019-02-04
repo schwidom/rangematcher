@@ -396,15 +396,33 @@ namespace
   for( const auto & matchRange : **matchedRangesRelative)
   {
    const MatchRange<long>::I & i (matchRange.i());
-   lua_checkstack( L, 5); // TODO check
-   lua_pushstring(L, i.namingWeakOrdered.name.c_str());
-   lua_pushinteger(L, i.d.begin.begin);
-   lua_pushinteger(L, i.d.begin.end);
-   lua_pushinteger(L, i.d.end.begin);
-   lua_pushinteger(L, i.d.end.end);
+
+   lua_createtable(L, 0, 5);
+   int table = lua_gettop(L);
+
+   lua_pushstring( L, "name");
+   lua_pushstring( L, i.namingWeakOrdered.name.c_str());
+   lua_settable( L, table); 
+
+   lua_pushstring( L, "begin.begin");
+   lua_pushinteger( L, i.d.begin.begin);
+   lua_settable( L, table); 
+
+   lua_pushstring( L, "begin.end");
+   lua_pushinteger( L, i.d.begin.end);
+   lua_settable( L, table); 
+
+   lua_pushstring( L, "end.begin");
+   lua_pushinteger( L, i.d.end.begin);
+   lua_settable( L, table); 
+
+   lua_pushstring( L, "end.end");
+   lua_pushinteger( L, i.d.end.end);
+   lua_settable( L, table); 
+   
   }
 
-  return (*matchedRangesRelative)->size() * 5;
+  return (*matchedRangesRelative)->size();
  }
 }
 

@@ -13,9 +13,19 @@ file1 = rmFileRead("testfiles/006.txt")
 result = rmMatchRanges(nonOverlappingMatcher, file1)
 -- print( rmMatchRanges2Lua(result))
 
-expectedResults = { "initial-element-jc3jvchtrz", 0, 0, 51, 51, "comment2", 0, 2, 9, 10, "string2", 10, 11, 12, 14, "string1", 14, 15, 26, 28, "comment1", 28, 30, 38, 40, "string1", 40, 41, 41, 42, "string2", 42, 43, 43, 44, "string1", 44, 45, 51, 51 }
+expectedResults = { 
+ { ["name"] = "initial-element-jc3jvchtrz",  ["begin.begin"]=0, ["begin.end"]=0, ["end.begin"]=51, ["end.end"]=51} ,
+ { ["name"] = "comment2",  ["begin.begin"]=0, ["begin.end"]=2, ["end.begin"]=9, ["end.end"]=10 } ,
+ { ["name"] = "string2",  ["begin.begin"]=10, ["begin.end"]=11, ["end.begin"]=12, ["end.end"]=14 } ,
+ { ["name"] = "string1",  ["begin.begin"]=14, ["begin.end"]=15, ["end.begin"]=26, ["end.end"]=28} ,
+ { ["name"] = "comment1",  ["begin.begin"]=28, ["begin.end"]=30, ["end.begin"]=38, ["end.end"]=40} ,
+ { ["name"] = "string1",  ["begin.begin"]=40, ["begin.end"]=41, ["end.begin"]=41, ["end.end"]=42} ,
+ { ["name"] = "string2",  ["begin.begin"]=42, ["begin.end"]=43, ["end.begin"]=43, ["end.end"]=44 } ,
+ { ["name"] = "string1",  ["begin.begin"]=44, ["begin.end"]=45, ["end.begin"]=51, ["end.end"]=51 }}
 
 gotResults = { rmMatchRanges2Lua(result) }
+
+print( 8 == #gotResults)
 
 for k, v in pairs(gotResults)
 do
@@ -23,6 +33,23 @@ do
  -- print( gotResults[k])
  -- print( expectedResults[k])
  -- print( gotResults[k] == expectedResults[k])
- print( v == expectedResults[k])
+ -- print( "#v", #v)
+
+ -- print( "+++")
+ -- print( k)
+ -- print( v[k][1])
+ -- print( expectedResults[k][1])
+
+ gotT = v
+ expectedT = expectedResults[k]
+ 
+ for k2, v2 in pairs(gotT)
+ do
+  -- print( "---")
+  -- print( "k2", k2)
+  -- print( "v2", v2)
+  -- print( expectedT[k2])
+  print( v2 == expectedT[k2])
+ end
 end
 
