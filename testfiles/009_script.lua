@@ -21,35 +21,21 @@ expectedResults = {
  { ["name"] = "comment1",  ["begin.begin"]=28, ["begin.end"]=30, ["end.begin"]=38, ["end.end"]=40} ,
  { ["name"] = "string1",  ["begin.begin"]=40, ["begin.end"]=41, ["end.begin"]=41, ["end.end"]=42} ,
  { ["name"] = "string2",  ["begin.begin"]=42, ["begin.end"]=43, ["end.begin"]=43, ["end.end"]=44 } ,
- { ["name"] = "string1",  ["begin.begin"]=44, ["begin.end"]=45, ["end.begin"]=51, ["end.end"]=51 }}
+ { ["name"] = "string1",  ["begin.begin"]=44, ["begin.end"]=45, ["end.begin"]=51, ["end.end"]=51 }
+}
 
 gotResults = { rmMatchRanges2Lua(result) }
 
 print( 8 == #gotResults)
 
-for k, v in pairs(gotResults)
+for k, vGot in pairs(gotResults)
 do
- -- print( k)
- -- print( gotResults[k])
- -- print( expectedResults[k])
- -- print( gotResults[k] == expectedResults[k])
- -- print( "#v", #v)
 
- -- print( "+++")
- -- print( k)
- -- print( v[k][1])
- -- print( expectedResults[k][1])
-
- gotT = v
- expectedT = expectedResults[k]
+ vExpected = expectedResults[k]
  
- for k2, v2 in pairs(gotT)
+ for k2, v2 in pairs(vGot)
  do
-  -- print( "---")
-  -- print( "k2", k2)
-  -- print( "v2", v2)
-  -- print( expectedT[k2])
-  print( v2 == expectedT[k2])
+  print( v2 == vExpected[k2])
  end
 end
 

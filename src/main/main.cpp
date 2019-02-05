@@ -6,12 +6,10 @@
 int main( int argc, char** argv)
 {
 
- Console( StreamPair{std::cin, std::cout}); // TODO check default parameter, chech crash
+ Console( StreamPair{std::cin, std::cout}); 
 
- // Console *c = new Console( StreamPair{std::cin, std::cout}); // TODO check default parameter
- // delete c;
-
- // Console c( StreamPair{std::cin, std::cout}); // TODO check default parameter, check crash
+ //! WARNING: a crash with a dubious stacktrace can happen if the project 
+ //!  is not proper compiled and linked (with outdated modules)
 
  return 0;
 }

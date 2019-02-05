@@ -84,13 +84,10 @@ public:
    throw std::logic_error( "type is already known as primary type");
   }
 
-  if( m_TypeidNames2ValuesMap.find(typeIndex) != m_TypeidNames2ValuesMap.end())
+  if( !m_TypeidNames2ValuesMap.emplace(typeIndex, std::make_unique<Any<T2>>(tConverted)).second)
   {
    throw std::logic_error( "type is already registered");
   }
-
-  // m_TypeidNames2ValuesMap.emplace(std::pair<std::type_index,std::unique_ptr<AnyBase>>(typeIndex, Any<T2>(tConverted))); // ?
-  m_TypeidNames2ValuesMap[typeIndex] = std::make_unique<Any<T2>>(tConverted);
  }
 
  template <class T2> void addTypes ()
