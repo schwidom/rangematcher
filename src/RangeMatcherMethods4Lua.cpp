@@ -435,14 +435,19 @@ RangeMatcherMethods4Lua::RangeMatcherMethods4Lua()
  singleton = this;
 }
 
-void RangeMatcherMethods4Lua::propagate(LuaBase & luaBase)
+void RangeMatcherMethods4Lua::registerMethods2LuaBase(std::weak_ptr<LuaBase> luaBaseWeak)
 {
- if( m_Propagated)
- {
-  throw std::runtime_error{std::string(__func__) + "already propagated"};
- }
 
- auto * L( luaBase.getLua());
+ std::shared_ptr<LuaBase> luaBase = luaBaseWeak.lock();
+
+ if(!luaBase) { return;}
+
+ auto * L( luaBase->getLua());
+ 
+ if( !m_MapLua2LuaBase.emplace( L, luaBaseWeak).second)
+ {
+  throw std::runtime_error{std::string(__func__) + "already registered"};
+ }
 
  decltype(vectorOfRegisteredLuaFunctions) * vorlf = &vectorOfRegisteredLuaFunctions;
  decltype(mapOfHelpOfRegisteredLuaFunctions) * mohorlf = &mapOfHelpOfRegisteredLuaFunctions;
@@ -474,7 +479,6 @@ void RangeMatcherMethods4Lua::propagate(LuaBase & luaBase)
  REGISTER( rmToggleDebug, "toggles the debug flag and outputs its state");
 #undef REGISTER
 
- m_Propagated = true;
 }
 
 const std::string & RangeMatcherMethods4Lua::getLastErrorMessage() const

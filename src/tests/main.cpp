@@ -479,15 +479,15 @@ void test9()
 {
  std::cout << __func__ << std::endl;
 
- LuaBase lb{};
+ std::shared_ptr<LuaBase> lb{std::make_shared<LuaBase>()};
 
- luaL_openlibs( lb.getLua());
+ luaL_openlibs( lb->getLua());
 
  RangeMatcherMethods4Lua rangeMatcherMethods4Lua{};
 
- rangeMatcherMethods4Lua.propagate(lb);
+ rangeMatcherMethods4Lua.registerMethods2LuaBase(lb);
 
- int res = luaL_dofile( lb.getLua(), "testfiles/009_script.lua");
+ int res = luaL_dofile( lb->getLua(), "testfiles/009_script.lua");
 
  std::cout << (0 == res) << std::endl;
 

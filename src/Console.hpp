@@ -3,9 +3,10 @@
 #include "LuaBase.hpp"
 #include "RangeMatcherMethods4Lua.hpp"
 
+#include <functional>
 #include <iostream>
 #include <map>
-#include <functional>
+#include <memory>
 
 struct StreamPair
 {
@@ -21,7 +22,7 @@ public:
 private:
  StreamPair m_StreamPair;
 
- LuaBase m_LuaBase{};
+ std::shared_ptr<LuaBase> m_LuaBase{std::make_shared<LuaBase>()};
 
  bool m_ConsoleQuit{false};
 
