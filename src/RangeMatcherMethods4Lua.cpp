@@ -1,4 +1,5 @@
 #include "Any.hpp"
+#include "Console.hpp"
 #include "FileToVector.hpp"
 #include "MatchRange.hpp"
 #include "NamedPatternRange.hpp"
@@ -14,6 +15,8 @@
 
 // collections
 #include <map>
+#include <set>
+#include <sstream> // ostringstream
 #include <vector>
 
 #include <stdexcept> // runtime_error
@@ -26,18 +29,43 @@
 
 namespace
 {
- bool debug{false};
 
- RangeMatcherMethods4Lua *singleton{nullptr};
- std::vector<std::unique_ptr<AnyBase>> vectorOfObjects{};
- std::string lastErrorMessage{};
- std::vector<std::string> vectorOfRegisteredLuaFunctions{};
- std::map<std::string,std::string> mapOfHelpOfRegisteredLuaFunctions{};
+ struct RangeMatcherLuaRuntime
+ {
+  RangeMatcherLuaRuntime(RangeMatcherMethods4Lua & rangeMatcherMethods4Lua)
+  : rangeMatcherMethods4Lua{rangeMatcherMethods4Lua} {}
+
+  RangeMatcherMethods4Lua & rangeMatcherMethods4Lua;
+  bool debug{false};
+  std::vector<std::unique_ptr<AnyBase>> vectorOfObjects{};
+  std::string lastErrorMessage{};
+  std::vector<std::string> vectorOfRegisteredLuaFunctions{};
+  std::map<std::string,std::string> mapOfHelpOfRegisteredLuaFunctions{};
+ };
+
+ std::set<RangeMatcherMethods4Lua *> rangeMatcherMethods4LuaInstances{}; //!< always valid pointers
+
+ // std::map<lua_State*,RangeMatcherMethods4Lua *> lua2RangeMatcherLuaRuntime{}; //!< always valid pointers since the RangeMatcherMethods4Lua::m_MapLua2LuaBase has valid weak pointer
+ std::map<lua_State*,RangeMatcherLuaRuntime> lua2RangeMatcherLuaRuntime{}; //!< always valid pointers since the RangeMatcherMethods4Lua::m_MapLua2LuaBase has valid weak pointer
+
+ void collectGarbage() // TODO : bind to LuaBase destructors
+ {
+  for( auto rangeMatcherMethods4Lua : rangeMatcherMethods4LuaInstances)
+  {
+   auto luaInstances( rangeMatcherMethods4Lua -> collectGarbage());
+   for( const auto & luaInstance : luaInstances)
+   {
+    lua2RangeMatcherLuaRuntime.erase(luaInstance);
+   }
+  }
+ }
 
  void raiseLuaError( lua_State * L, std::string msg)
  {
-  lastErrorMessage = msg;
-  lua_pushstring(L, lastErrorMessage.c_str());
+  auto & rt = lua2RangeMatcherLuaRuntime.at(L);
+
+  rt.lastErrorMessage = msg;
+  lua_pushstring(L, rt.lastErrorMessage.c_str());
   lua_error(L);
  }
 
@@ -65,18 +93,22 @@ namespace
 
  int rmNextObjectIndex(lua_State * L)
  {
-  lastErrorMessage = "";
+  auto & rt = lua2RangeMatcherLuaRuntime.at(L);
+
+  rt.lastErrorMessage = "";
 
   chkArguments( L, 0, __func__);
  
-  lua_pushinteger(L, vectorOfObjects.size());
+  lua_pushinteger(L, rt.vectorOfObjects.size());
   
   return 1;
  }
 
  template <class T, class ... Tadditional> int rmT(lua_State * L, std::function<T(std::string)> creator) 
  {
-  lastErrorMessage = "";
+  auto & rt = lua2RangeMatcherLuaRuntime.at(L);
+
+  rt.lastErrorMessage = "";
 
   int numberOfArguments = chkArguments( L, 1, std::numeric_limits<int>::max(), __func__);
  
@@ -84,20 +116,20 @@ namespace
   {
    std::string stringOfInterest{lua_tostring(L, i + 1)};
 
-   if( debug){ std::cout << "stringOfInterest " << stringOfInterest << std::endl;}
+   if( rt.debug){ std::cout << "stringOfInterest " << stringOfInterest << std::endl;}
 
    std::unique_ptr<Any<T>> pattern(std::make_unique<Any<T>>(creator(stringOfInterest)));
 
    pattern -> template addTypes<Tadditional...>();
 
-   vectorOfObjects.push_back( std::move(pattern));
+   rt.vectorOfObjects.push_back( std::move(pattern));
   }
 
   lua_pop(L, numberOfArguments);
   
   for( int i= 0; i< numberOfArguments; ++i)
   {
-   lua_pushinteger(L, vectorOfObjects.size() - numberOfArguments + i);
+   lua_pushinteger(L, rt.vectorOfObjects.size() - numberOfArguments + i);
   }
 
   return numberOfArguments;
@@ -105,6 +137,8 @@ namespace
 
  int rmPatternString(lua_State * L)
  {
+  auto & rt = lua2RangeMatcherLuaRuntime.at(L);
+
   using T = PatternString;
   using ST = std::shared_ptr<T>;
 
@@ -115,6 +149,10 @@ namespace
 
  int rmPatternRegex(lua_State * L)
  {
+  auto & rt = lua2RangeMatcherLuaRuntime.at(L);
+
+  rt.lastErrorMessage = "";
+
   using T = PatternRegex;
   using ST = std::shared_ptr<T>;
 
@@ -125,7 +163,9 @@ namespace
 
  int rmNamedPatternRange(lua_State * L)
  {
-  lastErrorMessage = "";
+  auto & rt = lua2RangeMatcherLuaRuntime.at(L);
+
+  rt.lastErrorMessage = "";
 
   int numberOfArguments{3};
 
@@ -137,10 +177,10 @@ namespace
 
   lua_pop(L, numberOfArguments);
 
-  if( debug){ std::cout << "nameString " << nameString << std::endl;}
+  if( rt.debug){ std::cout << "nameString " << nameString << std::endl;}
 
-  auto * patternVon(vectorOfObjects.at(patternVonInt)->get<std::shared_ptr<Pattern>>());
-  auto * patternBis(vectorOfObjects.at(patternBisInt)->get<std::shared_ptr<Pattern>>());
+  auto * patternVon(rt.vectorOfObjects.at(patternVonInt)->get<std::shared_ptr<Pattern>>());
+  auto * patternBis(rt.vectorOfObjects.at(patternBisInt)->get<std::shared_ptr<Pattern>>());
   
   if( !patternVon)
   {
@@ -156,16 +196,18 @@ namespace
 
   auto cnpt( std::make_shared<CNPT>(CNPT::I{nameString, *patternVon, *patternBis}));
 
-  vectorOfObjects.push_back( std::make_unique<Any<std::shared_ptr<CNPT>>>(std::move(cnpt)));
+  rt.vectorOfObjects.push_back( std::make_unique<Any<std::shared_ptr<CNPT>>>(std::move(cnpt)));
 
-  lua_pushinteger(L, vectorOfObjects.size() - 1);
+  lua_pushinteger(L, rt.vectorOfObjects.size() - 1);
 
   return 1;
  }
 
  int rmNamedPatternRangeVector(lua_State * L)
  {
-  lastErrorMessage = "";
+  auto & rt = lua2RangeMatcherLuaRuntime.at(L);
+
+  rt.lastErrorMessage = "";
 
   int numberOfArguments = chkArguments( L, 1, std::numeric_limits<int>::max(), __func__);
  
@@ -177,7 +219,7 @@ namespace
   {
    long patternRangeInt{lua_tointeger(L, i + 1)};
 
-   auto * patternRange(vectorOfObjects.at(patternRangeInt)->get<std::shared_ptr<CNPT>>());
+   auto * patternRange(rt.vectorOfObjects.at(patternRangeInt)->get<std::shared_ptr<CNPT>>());
 
    if( !patternRange)
    {
@@ -189,16 +231,18 @@ namespace
 
   lua_pop(L, numberOfArguments);
   
-  vectorOfObjects.push_back( std::make_unique<Any<std::shared_ptr<std::vector<std::shared_ptr<CNPT>>>>>(std::move(patternRangeVector)));
+  rt.vectorOfObjects.push_back( std::make_unique<Any<std::shared_ptr<std::vector<std::shared_ptr<CNPT>>>>>(std::move(patternRangeVector)));
 
-  lua_pushinteger(L, vectorOfObjects.size() - 1);
+  lua_pushinteger(L, rt.vectorOfObjects.size() - 1);
 
   return 1;
  }
 
  int rmNonOverlappingMatcher(lua_State * L)
  {
-  lastErrorMessage = "";
+  auto & rt = lua2RangeMatcherLuaRuntime.at(L);
+
+  rt.lastErrorMessage = "";
 
   int numberOfArguments = chkArguments( L, 1, std::numeric_limits<int>::max(), __func__);
  
@@ -210,7 +254,7 @@ namespace
   {
    long patternRangeInt{lua_tointeger(L, i + 1)};
 
-   auto * patternRange(vectorOfObjects.at(patternRangeInt)->get<std::shared_ptr<CNPT>>());
+   auto * patternRange(rt.vectorOfObjects.at(patternRangeInt)->get<std::shared_ptr<CNPT>>());
 
    if( !patternRange)
    {
@@ -224,38 +268,42 @@ namespace
   
   auto nonOverlappingMatcher(std::make_shared<NonOverlappingMatcher>(*patternRangeVector));
 
-  vectorOfObjects.push_back( std::make_unique<Any<std::shared_ptr<NonOverlappingMatcher>>>(std::move(nonOverlappingMatcher)));
+  rt.vectorOfObjects.push_back( std::make_unique<Any<std::shared_ptr<NonOverlappingMatcher>>>(std::move(nonOverlappingMatcher)));
 
-  lua_pushinteger(L, vectorOfObjects.size() - 1);
+  lua_pushinteger(L, rt.vectorOfObjects.size() - 1);
 
   return 1;
  }
 
  int rmFunctions(lua_State * L) // TODO : optional regexp parameter 
  {
-  lastErrorMessage = "";
+  auto & rt = lua2RangeMatcherLuaRuntime.at(L);
+
+  rt.lastErrorMessage = "";
 
   int numberOfArguments{0};
   chkArguments( L, numberOfArguments, __func__);
  
-  for( const auto & functionName : vectorOfRegisteredLuaFunctions)
+  for( const auto & functionName : rt.vectorOfRegisteredLuaFunctions)
   {
    lua_pushstring(L, functionName.c_str());
   }
 
-  return vectorOfRegisteredLuaFunctions.size();
+  return rt.vectorOfRegisteredLuaFunctions.size();
  }
 
  int rmHelp(lua_State * L) // TODO : optional regexp parameter or help menu
  {
-  lastErrorMessage = "";
+  auto & rt = lua2RangeMatcherLuaRuntime.at(L);
+
+  rt.lastErrorMessage = "";
 
   int numberOfArguments{0};
   chkArguments( L, numberOfArguments, __func__);
  
-  for( const auto & key : vectorOfRegisteredLuaFunctions)
+  for( const auto & key : rt.vectorOfRegisteredLuaFunctions)
   {
-   const auto & value ( mapOfHelpOfRegisteredLuaFunctions.at(key));
+   const auto & value ( rt.mapOfHelpOfRegisteredLuaFunctions.at(key));
    std::cout << key << " ... " << value << std::endl;
   }
 
@@ -264,33 +312,39 @@ namespace
 
  int rmToggleDebug(lua_State * L) 
  {
-  lastErrorMessage = "";
+  auto & rt = lua2RangeMatcherLuaRuntime.at(L);
+
+  rt.lastErrorMessage = "";
 
   int numberOfArguments{0};
   chkArguments( L, numberOfArguments, __func__);
  
-  debug = !debug;
+  rt.debug = !rt.debug;
 
-  std::cout << "lua debug is " << ( debug ? "on" : "off") << std::endl;
+  std::cout << "lua debug is " << ( rt.debug ? "on" : "off") << std::endl;
 
   return 0;
  }
 
  int rmClear(lua_State * L)
  {
-  lastErrorMessage = "";
+  auto & rt = lua2RangeMatcherLuaRuntime.at(L);
+
+  rt.lastErrorMessage = "";
 
   int numberOfArguments{0};
   chkArguments( L, numberOfArguments, __func__);
  
-  vectorOfObjects.clear();
+  rt.vectorOfObjects.clear();
 
   return 0;
  }
 
  int rmFileRead(lua_State * L)
  {
-  lastErrorMessage = "";
+  auto & rt = lua2RangeMatcherLuaRuntime.at(L);
+
+  rt.lastErrorMessage = "";
 
   int numberOfArguments = chkArguments( L, 1, std::numeric_limits<int>::max(), __func__);
 
@@ -298,18 +352,18 @@ namespace
   {
    std::string stringOfInterest{lua_tostring(L, i + 1)};
 
-   if( debug){ std::cout << "stringOfInterest " << stringOfInterest << std::endl;}
+   if( rt.debug){ std::cout << "stringOfInterest " << stringOfInterest << std::endl;}
 
    std::shared_ptr<std::vector<char>> fileVector( FileToVector(stringOfInterest).get());
 
-   vectorOfObjects.push_back( std::make_unique<Any<decltype(fileVector)>>(std::move(fileVector)));
+   rt.vectorOfObjects.push_back( std::make_unique<Any<decltype(fileVector)>>(std::move(fileVector)));
   }
 
   lua_pop(L, numberOfArguments);
 
   for( int i= 0; i< numberOfArguments; ++i)
   {
-   lua_pushinteger(L, vectorOfObjects.size() - numberOfArguments + i);
+   lua_pushinteger(L, rt.vectorOfObjects.size() - numberOfArguments + i);
   }
 
   return numberOfArguments;
@@ -317,7 +371,9 @@ namespace
 
  int rmMatchRanges(lua_State * L)
  {
-  lastErrorMessage = "";
+  auto & rt = lua2RangeMatcherLuaRuntime.at(L);
+
+  rt.lastErrorMessage = "";
 
   int numberOfArguments = 2;
   chkArguments( L, numberOfArguments, __func__); // nonOverlappingMatcher, fileVector
@@ -327,14 +383,14 @@ namespace
 
   lua_pop(L, numberOfArguments);
 
-  auto * nonOverlappingMatcher(vectorOfObjects.at(nonOverlappingMatcherInt)->get<std::shared_ptr<NonOverlappingMatcher>>());
+  auto * nonOverlappingMatcher(rt.vectorOfObjects.at(nonOverlappingMatcherInt)->get<std::shared_ptr<NonOverlappingMatcher>>());
 
   if( !nonOverlappingMatcher)
   {
    raiseLuaError( L, "wrong type at index " + std::to_string(nonOverlappingMatcherInt) + " argument : " + std::to_string( 1));
   }
 
-  auto * fileVector(vectorOfObjects.at(fileVectorInt)->get<std::shared_ptr<std::vector<char>>>());
+  auto * fileVector(rt.vectorOfObjects.at(fileVectorInt)->get<std::shared_ptr<std::vector<char>>>());
 
   if( !fileVector)
   {
@@ -368,16 +424,18 @@ namespace
   });
 */
 
-  vectorOfObjects.push_back( std::make_unique<Any<decltype(matchedRangesRelative)>>(std::move(matchedRangesRelative)));
+  rt.vectorOfObjects.push_back( std::make_unique<Any<decltype(matchedRangesRelative)>>(std::move(matchedRangesRelative)));
 
-  lua_pushinteger(L, vectorOfObjects.size() - 1);
+  lua_pushinteger(L, rt.vectorOfObjects.size() - 1);
 
   return 1;
  }
 
  int rmMatchRanges2Lua(lua_State * L)
  {
-  lastErrorMessage = "";
+  auto & rt = lua2RangeMatcherLuaRuntime.at(L);
+
+  rt.lastErrorMessage = "";
 
   int numberOfArguments = 1;
   chkArguments( L, numberOfArguments, __func__); // std::vector<MatchRange<long>>
@@ -386,7 +444,7 @@ namespace
 
   lua_pop(L, numberOfArguments);
 
-  auto * matchedRangesRelative(vectorOfObjects.at(matchRangesIdx)->get<std::shared_ptr<std::vector<MatchRange<long>>>>());
+  auto * matchedRangesRelative(rt.vectorOfObjects.at(matchRangesIdx)->get<std::shared_ptr<std::vector<MatchRange<long>>>>());
 
   if( !matchedRangesRelative)
   {
@@ -424,16 +482,57 @@ namespace
 
   return (*matchedRangesRelative)->size();
  }
+
+ int rmConsole(lua_State * L) 
+ {
+  auto & rt = lua2RangeMatcherLuaRuntime.at(L);
+
+  rt.lastErrorMessage = "";
+
+  int numberOfArguments{0};
+  chkArguments( L, numberOfArguments, __func__);
+ 
+  Console(StreamPair{std::cin, std::cout}, rt.rangeMatcherMethods4Lua.m_MapLua2LuaBase.at(L).lock(), rt.rangeMatcherMethods4Lua);
+
+  return 0;
+ }
+
+ int rmConsoleNew(lua_State * L) 
+ {
+  auto & rt = lua2RangeMatcherLuaRuntime.at(L);
+
+  rt.lastErrorMessage = "";
+
+  int numberOfArguments{0};
+  chkArguments( L, numberOfArguments, __func__);
+ 
+  Console(StreamPair{std::cin, std::cout});
+
+  return 0;
+ }
+
 }
 
 RangeMatcherMethods4Lua::RangeMatcherMethods4Lua()
 {
- if(singleton)
+ auto itThis = rangeMatcherMethods4LuaInstances.find(this);
+ if( itThis != rangeMatcherMethods4LuaInstances.end())
  {
-  throw std::runtime_error{std::string(__func__) + "singleton already set"};
+  throw std::runtime_error{std::string(__func__) + "RangeMatcherMethods4Lua is already registered"};
  }
- singleton = this;
+ rangeMatcherMethods4LuaInstances.emplace( this);
 }
+
+RangeMatcherMethods4Lua::~RangeMatcherMethods4Lua()
+{
+ auto itThis = rangeMatcherMethods4LuaInstances.find(this);
+ if( itThis == rangeMatcherMethods4LuaInstances.end())
+ {
+  throw std::runtime_error{std::string(__func__) + "RangeMatcherMethods4Lua was not registered"};
+ }
+ rangeMatcherMethods4LuaInstances.erase( itThis);
+}
+
 
 void RangeMatcherMethods4Lua::registerMethods2LuaBase(std::weak_ptr<LuaBase> luaBaseWeak)
 {
@@ -446,11 +545,20 @@ void RangeMatcherMethods4Lua::registerMethods2LuaBase(std::weak_ptr<LuaBase> lua
  
  if( !m_MapLua2LuaBase.emplace( L, luaBaseWeak).second)
  {
-  throw std::runtime_error{std::string(__func__) + "already registered"};
+  throw std::runtime_error{std::string(__func__) + "lua_State* to LuaBase already registered"};
  }
 
- decltype(vectorOfRegisteredLuaFunctions) * vorlf = &vectorOfRegisteredLuaFunctions;
- decltype(mapOfHelpOfRegisteredLuaFunctions) * mohorlf = &mapOfHelpOfRegisteredLuaFunctions;
+ if( !lua2RangeMatcherLuaRuntime.emplace( L, *this).second)
+ {
+  throw std::runtime_error{std::string(__func__) + "lua_State* to RangeMatcherMethods4Lua already registered"};
+ }
+
+ ::collectGarbage();
+
+ auto & rt = lua2RangeMatcherLuaRuntime.at(L); // TODO : take earlier instance
+
+ decltype(rt.vectorOfRegisteredLuaFunctions) * vorlf = &rt.vectorOfRegisteredLuaFunctions;
+ decltype(rt.mapOfHelpOfRegisteredLuaFunctions) * mohorlf = &rt.mapOfHelpOfRegisteredLuaFunctions;
 
  std::function<void(const char * functionName, lua_CFunction function, std::string helpString)>
 
@@ -465,6 +573,9 @@ void RangeMatcherMethods4Lua::registerMethods2LuaBase(std::weak_ptr<LuaBase> lua
 
  REGISTER( rmClear, "clears the variables vector");
  REGISTER( rmNextObjectIndex, " outputs the next index of the variables vector");
+
+ REGISTER( rmConsole, "starts a console with current settings");
+ REGISTER( rmConsoleNew, "starts a console with new settings");
 
  REGISTER( rmFileRead, "reads a file");
  REGISTER( rmFunctions, "returns all function names");
@@ -481,8 +592,19 @@ void RangeMatcherMethods4Lua::registerMethods2LuaBase(std::weak_ptr<LuaBase> lua
 
 }
 
-const std::string & RangeMatcherMethods4Lua::getLastErrorMessage() const
+const std::string RangeMatcherMethods4Lua::getLastErrorMessage() const
 {
- return lastErrorMessage;
+ std::ostringstream oss;
+
+ for( const auto & kvp : m_MapLua2LuaBase)
+ {
+  std::shared_ptr<LuaBase> luaBase = kvp.second.lock();
+  if( luaBase) // INFO : garbage collection information is available
+  {
+   oss << lua2RangeMatcherLuaRuntime.at( luaBase->getLua()).lastErrorMessage << std::endl;
+  }
+ }
+ 
+ return oss.str();
 }
 

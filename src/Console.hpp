@@ -16,17 +16,24 @@ struct StreamPair
 
 class Console
 {
+private:
+ void init();
+
 public:
- explicit Console(StreamPair streamPair = {std::cin, std::cout});
+ explicit Console(StreamPair streamPair);
+
+ explicit Console(StreamPair streamPair, std::shared_ptr<LuaBase> luaBase, RangeMatcherMethods4Lua & rangeMatcherMethods4Lua);
 
 private:
  StreamPair m_StreamPair;
 
- std::shared_ptr<LuaBase> m_LuaBase{std::make_shared<LuaBase>()};
+ std::shared_ptr<LuaBase> m_LuaBase;
 
  bool m_ConsoleQuit{false};
 
- RangeMatcherMethods4Lua m_RangeMatcherMethods4Lua{};
+ RangeMatcherMethods4Lua m_RangeMatcherMethods4LuaDefault{};
+
+ RangeMatcherMethods4Lua & m_RangeMatcherMethods4Lua; // TODO : distribute both variations in subclasses
 
  struct Token : std::string { using std::string::string; };
 

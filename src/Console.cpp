@@ -23,14 +23,12 @@ void Console::emplaceContextEntries(MenuMap &menuMap)
  menuMap.emplace( Token{"t"}, Menu{ "current menu tree with optional depth", {}, BIND(interpretTree)});
 }
 
-Console::Console(StreamPair streamPair)
-: m_StreamPair(streamPair)
+void Console::init()
 {
  
  auto & sp = m_StreamPair;
 
  luaL_openlibs( m_LuaBase->getLua());
- m_RangeMatcherMethods4Lua.registerMethods2LuaBase(m_LuaBase);
 
  emplaceContextEntries( m_MenuMap);
 
@@ -61,6 +59,23 @@ Console::Console(StreamPair streamPair)
    break;
   }
  }
+}
+
+Console::Console(StreamPair streamPair)
+: m_StreamPair(streamPair)
+, m_LuaBase{std::make_shared<LuaBase>()}
+, m_RangeMatcherMethods4Lua{m_RangeMatcherMethods4LuaDefault}
+{
+ m_RangeMatcherMethods4Lua.registerMethods2LuaBase(m_LuaBase);
+ init();
+}
+
+Console::Console(StreamPair streamPair, std::shared_ptr<LuaBase> luaBase, RangeMatcherMethods4Lua & rangeMatcherMethods4Lua)
+: m_StreamPair(streamPair)
+, m_LuaBase{std::move(luaBase)}
+, m_RangeMatcherMethods4Lua{rangeMatcherMethods4Lua}
+{
+ init();
 }
 
 void Console::interpretMenu(StringRange stringRange)
