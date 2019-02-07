@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 2.8)
 
 add_compile_options( -Wall -std=c++14 )
 
-add_compile_options( -I /home/ox/dev-git/rangematcher-like-sgrep/src )
+add_compile_options( -I ../../src )
 add_compile_options( -I/usr/include/lua5.2 )
 
 add_compile_options( -O3 )

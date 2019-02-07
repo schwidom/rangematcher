@@ -4,11 +4,11 @@ cmake_minimum_required(VERSION 2.8)
 set( CMAKE_VERBOSE_MAKEFILE 1 )
 
 # set( CMAKE_CXX_COMPILER /usr/bin/clang++-3.5 )
-set( CMAKE_CXX_COMPILER /usr/bin/g++-4.9 )
+# set( CMAKE_CXX_COMPILER /usr/bin/g++-4.9 )
 
 add_compile_options( -Wall -std=c++14 )
 
-add_compile_options( -I /home/ox/dev-git/rangematcher-like-sgrep/src )
+add_compile_options( -I ../../src )
 
 add_compile_options( -I/usr/include/lua5.2 )
 
