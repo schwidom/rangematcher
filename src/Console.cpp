@@ -28,8 +28,6 @@ void Console::init()
  
  auto & sp = m_StreamPair;
 
- luaL_openlibs( m_LuaBase->getLua());
-
  emplaceContextEntries( m_MenuMap);
 
  m_MenuMap.emplace( Token{"q"}, Menu{ "quit", {}, BIND( interpretQuit)});

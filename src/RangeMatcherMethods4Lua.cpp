@@ -12,6 +12,7 @@
 #include <algorithm> // transform
 #include <functional> // bind
 #include <iterator> // back_inserter
+#include <utility> // pair
 
 // collections
 #include <map>
@@ -41,28 +42,51 @@ namespace
   std::string lastErrorMessage{};
   std::vector<std::string> vectorOfRegisteredLuaFunctions{};
   std::map<std::string,std::string> mapOfHelpOfRegisteredLuaFunctions{};
+  std::map<lua_State*,std::weak_ptr<LuaBase>> mapLua2LuaBase; 
  };
 
- std::set<RangeMatcherMethods4Lua *> rangeMatcherMethods4LuaInstances{}; //!< always valid pointers
+ // get this always as a reference because it contains unique ptrs
+ std::map<RangeMatcherMethods4Lua *, RangeMatcherLuaRuntime> rangeMatcherMethods4LuaInstances{}; //!< always valid pointers
 
- // std::map<lua_State*,RangeMatcherMethods4Lua *> lua2RangeMatcherLuaRuntime{}; //!< always valid pointers since the RangeMatcherMethods4Lua::m_MapLua2LuaBase has valid weak pointer
- std::map<lua_State*,RangeMatcherLuaRuntime> lua2RangeMatcherLuaRuntime{}; //!< always valid pointers since the RangeMatcherMethods4Lua::m_MapLua2LuaBase has valid weak pointer
+ // RangeMatcherLuaRuntime * points to rangeMatcherMethods4LuaInstances (for speed reasons)
+ std::map<lua_State*,RangeMatcherLuaRuntime *> lua2RangeMatcherLuaRuntime{}; //!< always valid pointers 
 
- void collectGarbage() // TODO : bind to LuaBase destructors
+ void collectGarbagePerRangeMatcherLuaRuntime(RangeMatcherLuaRuntime & rangeMatcherLuaRuntime)
  {
-  for( auto rangeMatcherMethods4Lua : rangeMatcherMethods4LuaInstances)
-  {
-   auto luaInstances( rangeMatcherMethods4Lua -> collectGarbage());
-   for( const auto & luaInstance : luaInstances)
+   std::vector<lua_State*> toDelete;
+   // std::set<lua_State*> toDelete;
+
+   decltype(rangeMatcherLuaRuntime.mapLua2LuaBase) & mapLua2LuaBase{rangeMatcherLuaRuntime.mapLua2LuaBase};
+
+   for( auto kvp: mapLua2LuaBase) // TODO : bind to LuaBase destructors
    {
+    if( !kvp.second.lock())
+    {
+     toDelete.push_back(kvp.first);
+     // toDelete.emplace(kvp.first);
+    }
+   }
+
+   for( const auto & luaInstance : toDelete)
+   {
+    mapLua2LuaBase.erase(luaInstance);
     lua2RangeMatcherLuaRuntime.erase(luaInstance);
    }
+ }
+
+ void collectGarbageAll() 
+ {
+  for( auto & kvp: rangeMatcherMethods4LuaInstances)
+  {
+
+   collectGarbagePerRangeMatcherLuaRuntime(kvp.second);
   }
  }
 
+
  void raiseLuaError( lua_State * L, std::string msg)
  {
-  auto & rt = lua2RangeMatcherLuaRuntime.at(L);
+  auto & rt = *lua2RangeMatcherLuaRuntime.at(L);
 
   rt.lastErrorMessage = msg;
   lua_pushstring(L, rt.lastErrorMessage.c_str());
@@ -93,7 +117,7 @@ namespace
 
  int rmNextObjectIndex(lua_State * L)
  {
-  auto & rt = lua2RangeMatcherLuaRuntime.at(L);
+  auto & rt = *lua2RangeMatcherLuaRuntime.at(L);
 
   rt.lastErrorMessage = "";
 
@@ -106,7 +130,7 @@ namespace
 
  template <class T, class ... Tadditional> int rmT(lua_State * L, std::function<T(std::string)> creator) 
  {
-  auto & rt = lua2RangeMatcherLuaRuntime.at(L);
+  auto & rt = *lua2RangeMatcherLuaRuntime.at(L);
 
   rt.lastErrorMessage = "";
 
@@ -137,7 +161,7 @@ namespace
 
  int rmPatternString(lua_State * L)
  {
-  auto & rt = lua2RangeMatcherLuaRuntime.at(L);
+  auto & rt = *lua2RangeMatcherLuaRuntime.at(L);
 
   using T = PatternString;
   using ST = std::shared_ptr<T>;
@@ -149,7 +173,7 @@ namespace
 
  int rmPatternRegex(lua_State * L)
  {
-  auto & rt = lua2RangeMatcherLuaRuntime.at(L);
+  auto & rt = *lua2RangeMatcherLuaRuntime.at(L);
 
   rt.lastErrorMessage = "";
 
@@ -163,7 +187,7 @@ namespace
 
  int rmNamedPatternRange(lua_State * L)
  {
-  auto & rt = lua2RangeMatcherLuaRuntime.at(L);
+  auto & rt = *lua2RangeMatcherLuaRuntime.at(L);
 
   rt.lastErrorMessage = "";
 
@@ -205,7 +229,7 @@ namespace
 
  int rmNamedPatternRangeVector(lua_State * L)
  {
-  auto & rt = lua2RangeMatcherLuaRuntime.at(L);
+  auto & rt = *lua2RangeMatcherLuaRuntime.at(L);
 
   rt.lastErrorMessage = "";
 
@@ -240,7 +264,7 @@ namespace
 
  int rmNonOverlappingMatcher(lua_State * L)
  {
-  auto & rt = lua2RangeMatcherLuaRuntime.at(L);
+  auto & rt = *lua2RangeMatcherLuaRuntime.at(L);
 
   rt.lastErrorMessage = "";
 
@@ -277,7 +301,7 @@ namespace
 
  int rmFunctions(lua_State * L) // TODO : optional regexp parameter 
  {
-  auto & rt = lua2RangeMatcherLuaRuntime.at(L);
+  auto & rt = *lua2RangeMatcherLuaRuntime.at(L);
 
   rt.lastErrorMessage = "";
 
@@ -294,7 +318,7 @@ namespace
 
  int rmHelp(lua_State * L) // TODO : optional regexp parameter or help menu
  {
-  auto & rt = lua2RangeMatcherLuaRuntime.at(L);
+  auto & rt = *lua2RangeMatcherLuaRuntime.at(L);
 
   rt.lastErrorMessage = "";
 
@@ -312,7 +336,7 @@ namespace
 
  int rmToggleDebug(lua_State * L) 
  {
-  auto & rt = lua2RangeMatcherLuaRuntime.at(L);
+  auto & rt = *lua2RangeMatcherLuaRuntime.at(L);
 
   rt.lastErrorMessage = "";
 
@@ -328,7 +352,7 @@ namespace
 
  int rmClear(lua_State * L)
  {
-  auto & rt = lua2RangeMatcherLuaRuntime.at(L);
+  auto & rt = *lua2RangeMatcherLuaRuntime.at(L);
 
   rt.lastErrorMessage = "";
 
@@ -342,7 +366,7 @@ namespace
 
  int rmFileRead(lua_State * L)
  {
-  auto & rt = lua2RangeMatcherLuaRuntime.at(L);
+  auto & rt = *lua2RangeMatcherLuaRuntime.at(L);
 
   rt.lastErrorMessage = "";
 
@@ -371,7 +395,7 @@ namespace
 
  int rmMatchRanges(lua_State * L)
  {
-  auto & rt = lua2RangeMatcherLuaRuntime.at(L);
+  auto & rt = *lua2RangeMatcherLuaRuntime.at(L);
 
   rt.lastErrorMessage = "";
 
@@ -433,7 +457,7 @@ namespace
 
  int rmMatchRanges2Lua(lua_State * L)
  {
-  auto & rt = lua2RangeMatcherLuaRuntime.at(L);
+  auto & rt = *lua2RangeMatcherLuaRuntime.at(L);
 
   rt.lastErrorMessage = "";
 
@@ -485,21 +509,21 @@ namespace
 
  int rmConsole(lua_State * L) 
  {
-  auto & rt = lua2RangeMatcherLuaRuntime.at(L);
+  auto & rt = *lua2RangeMatcherLuaRuntime.at(L);
 
   rt.lastErrorMessage = "";
 
   int numberOfArguments{0};
   chkArguments( L, numberOfArguments, __func__);
  
-  Console(StreamPair{std::cin, std::cout}, rt.rangeMatcherMethods4Lua.m_MapLua2LuaBase.at(L).lock(), rt.rangeMatcherMethods4Lua);
+  Console(StreamPair{std::cin, std::cout}, rt.mapLua2LuaBase.at(L).lock(), rt.rangeMatcherMethods4Lua);
 
   return 0;
  }
 
  int rmConsoleNew(lua_State * L) 
  {
-  auto & rt = lua2RangeMatcherLuaRuntime.at(L);
+  auto & rt = *lua2RangeMatcherLuaRuntime.at(L);
 
   rt.lastErrorMessage = "";
 
@@ -511,6 +535,48 @@ namespace
   return 0;
  }
 
+ int rmDebugSetInt(lua_State * L)
+ {
+  auto & rt = *lua2RangeMatcherLuaRuntime.at(L);
+
+  rt.lastErrorMessage = "";
+
+  int numberOfArguments = 1;
+  chkArguments( L, numberOfArguments, __func__); 
+
+  long gotInt{lua_tointeger(L, 1)};
+
+  lua_pop(L, numberOfArguments);
+
+  rt.vectorOfObjects.push_back(std::make_unique<Any<long>>(gotInt));
+
+  return 0;
+ }
+
+ int rmDebugGetInt(lua_State * L)
+ {
+  auto & rt = *lua2RangeMatcherLuaRuntime.at(L);
+
+  rt.lastErrorMessage = "";
+
+  int numberOfArguments = 1;
+  chkArguments( L, numberOfArguments, __func__); 
+
+  long intIdx{lua_tointeger(L, 1)};
+
+  lua_pop(L, numberOfArguments);
+
+  auto savedInt(rt.vectorOfObjects.at(intIdx)->get<long>());
+
+  if( !savedInt)
+  {
+   raiseLuaError( L, "wrong type at index " + std::to_string(intIdx) + " argument : " + std::to_string( 1));
+  }
+  
+  lua_pushinteger(L, *savedInt);
+  
+  return 1;
+ }
 }
 
 RangeMatcherMethods4Lua::RangeMatcherMethods4Lua()
@@ -520,7 +586,7 @@ RangeMatcherMethods4Lua::RangeMatcherMethods4Lua()
  {
   throw std::runtime_error{std::string(__func__) + "RangeMatcherMethods4Lua is already registered"};
  }
- rangeMatcherMethods4LuaInstances.emplace( this);
+ rangeMatcherMethods4LuaInstances.emplace( this, *this);
 }
 
 RangeMatcherMethods4Lua::~RangeMatcherMethods4Lua()
@@ -530,6 +596,29 @@ RangeMatcherMethods4Lua::~RangeMatcherMethods4Lua()
  {
   throw std::runtime_error{std::string(__func__) + "RangeMatcherMethods4Lua was not registered"};
  }
+
+ // derived from : collectGarbagePerRangeMatcherLuaRuntime(RangeMatcherLuaRuntime & rangeMatcherLuaRuntime)
+ {
+   std::vector<lua_State*> toDelete;
+
+   decltype(itThis->second.mapLua2LuaBase) & mapLua2LuaBase{itThis->second.mapLua2LuaBase};
+
+   for( auto kvp: mapLua2LuaBase) // TODO : bind to LuaBase destructors
+   {
+    toDelete.push_back(kvp.first);
+    if( !kvp.second.lock())
+    {
+     std::cout << "warning : a LuaBase istance is still active" << std::endl;
+    }
+   }
+
+   for( const auto & luaInstance : toDelete)
+   {
+    mapLua2LuaBase.erase(luaInstance);
+    lua2RangeMatcherLuaRuntime.erase(luaInstance);
+   }
+ }
+
  rangeMatcherMethods4LuaInstances.erase( itThis);
 }
 
@@ -543,19 +632,25 @@ void RangeMatcherMethods4Lua::registerMethods2LuaBase(std::weak_ptr<LuaBase> lua
 
  auto * L( luaBase->getLua());
  
- if( !m_MapLua2LuaBase.emplace( L, luaBaseWeak).second)
  {
-  throw std::runtime_error{std::string(__func__) + "lua_State* to LuaBase already registered"};
+
+  RangeMatcherLuaRuntime& thisRmlr = rangeMatcherMethods4LuaInstances.at(this);
+
+  if( !thisRmlr.mapLua2LuaBase.emplace( L, luaBaseWeak).second)
+  {
+   throw std::runtime_error{std::string(__func__) + "lua_State* to LuaBase already registered"};
+  }
+ 
+  if( !lua2RangeMatcherLuaRuntime.emplace( L, &thisRmlr).second)
+  {
+   throw std::runtime_error{std::string(__func__) + "lua_State* to RangeMatcherMethods4Lua already registered"};
+  }
+
  }
 
- if( !lua2RangeMatcherLuaRuntime.emplace( L, *this).second)
- {
-  throw std::runtime_error{std::string(__func__) + "lua_State* to RangeMatcherMethods4Lua already registered"};
- }
+ ::collectGarbageAll();
 
- ::collectGarbage();
-
- auto & rt = lua2RangeMatcherLuaRuntime.at(L); // TODO : take earlier instance
+ auto & rt = *lua2RangeMatcherLuaRuntime.at(L); // TODO : take earlier instance
 
  decltype(rt.vectorOfRegisteredLuaFunctions) * vorlf = &rt.vectorOfRegisteredLuaFunctions;
  decltype(rt.mapOfHelpOfRegisteredLuaFunctions) * mohorlf = &rt.mapOfHelpOfRegisteredLuaFunctions;
@@ -577,6 +672,9 @@ void RangeMatcherMethods4Lua::registerMethods2LuaBase(std::weak_ptr<LuaBase> lua
  REGISTER( rmConsole, "starts a console with current settings");
  REGISTER( rmConsoleNew, "starts a console with new settings");
 
+ REGISTER( rmDebugSetInt, "saves the given integer value to the variables vector");
+ REGISTER( rmDebugGetInt, "outputs the integer value from the variables vector at the given position");
+
  REGISTER( rmFileRead, "reads a file");
  REGISTER( rmFunctions, "returns all function names");
  REGISTER( rmHelp, "outputs help");
@@ -592,18 +690,13 @@ void RangeMatcherMethods4Lua::registerMethods2LuaBase(std::weak_ptr<LuaBase> lua
 
 }
 
-const std::string RangeMatcherMethods4Lua::getLastErrorMessage() const
+const std::string RangeMatcherMethods4Lua::getLastErrorMessage()
 {
  std::ostringstream oss;
 
- for( const auto & kvp : m_MapLua2LuaBase)
- {
-  std::shared_ptr<LuaBase> luaBase = kvp.second.lock();
-  if( luaBase) // INFO : garbage collection information is available
-  {
-   oss << lua2RangeMatcherLuaRuntime.at( luaBase->getLua()).lastErrorMessage << std::endl;
-  }
- }
+ const auto & thisRmlr = rangeMatcherMethods4LuaInstances.at(this);
+
+ return thisRmlr.lastErrorMessage;
  
  return oss.str();
 }

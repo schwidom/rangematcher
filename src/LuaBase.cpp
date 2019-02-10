@@ -10,6 +10,8 @@ LuaBase::LuaBase()
  {
   throw std::runtime_error{"!m_LuaState"};
  }
+
+ luaL_openlibs( m_LuaState); // e.g. assert, print
 }
 
 LuaBase::~LuaBase()
