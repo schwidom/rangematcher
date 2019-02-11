@@ -18,7 +18,7 @@ public:
 
  void registerMethods2LuaBase(std::weak_ptr<LuaBase> luaBaseWeak);
 
- const std::string getLastErrorMessage();
+ const std::string getLastErrorMessage() const;
 
 };
 

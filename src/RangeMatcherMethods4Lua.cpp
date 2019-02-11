@@ -46,10 +46,10 @@ namespace
  };
 
  // get this always as a reference because it contains unique ptrs
- std::map<RangeMatcherMethods4Lua *, RangeMatcherLuaRuntime> rangeMatcherMethods4LuaInstances{}; //!< always valid pointers
+ std::map<const RangeMatcherMethods4Lua *, RangeMatcherLuaRuntime> rangeMatcherMethods4LuaInstances{}; //!< always valid pointers
 
  // RangeMatcherLuaRuntime * points to rangeMatcherMethods4LuaInstances (for speed reasons)
- std::map<lua_State*,RangeMatcherLuaRuntime *> lua2RangeMatcherLuaRuntime{}; //!< always valid pointers 
+ std::map<const lua_State*,RangeMatcherLuaRuntime *> lua2RangeMatcherLuaRuntime{}; //!< always valid pointers 
 
  void collectGarbagePerRangeMatcherLuaRuntime(RangeMatcherLuaRuntime & rangeMatcherLuaRuntime)
  {
@@ -690,7 +690,7 @@ void RangeMatcherMethods4Lua::registerMethods2LuaBase(std::weak_ptr<LuaBase> lua
 
 }
 
-const std::string RangeMatcherMethods4Lua::getLastErrorMessage()
+const std::string RangeMatcherMethods4Lua::getLastErrorMessage() const
 {
  std::ostringstream oss;
 
