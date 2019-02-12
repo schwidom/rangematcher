@@ -20,6 +20,8 @@
 #include <sstream> // ostringstream
 #include <vector>
 
+#include <tuple>
+
 #include <stdexcept> // runtime_error
 
 #include <limits> // std::numeric_limits
@@ -50,6 +52,145 @@ namespace
 
  // RangeMatcherLuaRuntime * points to rangeMatcherMethods4LuaInstances (for speed reasons)
  std::map<const lua_State*,RangeMatcherLuaRuntime *> lua2RangeMatcherLuaRuntime{}; //!< always valid pointers 
+
+ template <class ... T> struct CallingParameter
+ {
+  using type = std::tuple<T...>;
+ };
+
+ template <class ... T> struct ReturningParameter
+ {
+  using type = std::tuple<T...>;
+ };
+
+ template<class T_CallingParameter, class T_ReturningParameter>
+ struct FunctionType
+ {
+  using type = void (*)(typename T_CallingParameter::type, typename T_ReturningParameter::type);
+ };
+
+ template <class T> struct ReadParameter;
+
+ template <> struct ReadParameter<long>
+ {
+  static long doIt(lua_State *L, int offset) // length check is already done, pop is later expected
+  {
+   return lua_tointeger(L, offset); // 1
+  }
+ };
+
+ template <class ... T> struct ReadParameters;
+
+ template <class T, class ... Tp> struct ReadParameters<T, Tp...>
+ {
+  static std::tuple<T, Tp...> doIt(lua_State *L, int offset)
+  {
+/* // TODO: find correct type arguments
+   return std::tuple_cat<T, Tp...>(
+    std::tuple<T>(ReadParameter<T>::doIt(L, offset)), 
+    ReadParameters<Tp...>::doIt(L, 1 + offset));
+*/
+
+   return std::tuple_cat(
+    std::tuple<T>(ReadParameter<T>::doIt(L, offset)), 
+    ReadParameters<Tp...>::doIt(L, 1 + offset));
+  }
+ };
+
+ template <> struct ReadParameters<>
+ {
+  static std::tuple<> doIt(lua_State *L, int offset)
+  {
+   return std::tuple<>();
+  }
+ };
+
+ void chkArguments( lua_State * L, int n, std::string functionName); // TODO : order functions
+
+ template <class ... Tp> std::tuple<Tp...> readParameterIntoTuple(lua_State *L)
+ {
+  std::tuple<Tp...> ret;
+
+  chkArguments( L, std::tuple_size<decltype(ret)>::value, __func__);
+
+  ret = ReadParameters<Tp...>::doIt(L, 1);
+
+  return ret;
+ }
+
+ template <class ... T> struct ReadParametersFromTuple;
+
+ template <class ... Tp> struct ReadParametersFromTuple<std::tuple<Tp...>>
+ {
+  static std::tuple<Tp...> doIt(lua_State *L, int offset)
+  {
+   return  ReadParameters<Tp...>::doIt( L, offset);
+  }
+ };
+
+ template <class T> T readParameterIntoTuple2(lua_State *L)
+ {
+  // std::tuple<Tp...> ret;
+  T ret;
+
+  chkArguments( L, std::tuple_size<decltype(ret)>::value, __func__);
+
+  ret = ReadParametersFromTuple<T>::doIt(L, 1);
+
+  return ret;
+ }
+
+ template <class T_CallingParameter, class T_ReturningParameter, 
+  typename FunctionType<T_CallingParameter, T_ReturningParameter>::type FunctionOfInterest>
+ struct LuaFunction // WEITERBEI // TODO
+ {
+  // typedef int (*lua_CFunction) (lua_State *L);
+  static int call(lua_State *L)
+  {
+   auto & rt = *lua2RangeMatcherLuaRuntime.at(L);
+
+   rt.lastErrorMessage = "";
+   
+   auto readin = readParameterIntoTuple2<typename T_CallingParameter::type>(L); // TODO : Types...
+
+   FunctionOfInterest(readin, std::tuple<>());
+
+   return 0;
+  }
+ };
+
+ void calllback1(std::tuple<>,std::tuple<>)
+ {
+ }
+
+ void calllback2(std::tuple<long> t1,std::tuple<>)
+ { 
+  std::cout << __func__ << " " << std::get<0>(t1) << std::endl;
+/*
++<< l rmLuaFunctionTest( 1)
+executing lua:  rmLuaFunctionTest( 1)
+calllback2 1
+success
+*/
+ }
+
+ void toDelete() // examplecalls // TODO
+ {
+  ReadParameter<long>::doIt(nullptr, 1);
+  ReadParameters<long>::doIt(nullptr, 1);
+  ReadParameters<long,long>::doIt(nullptr, 1);
+  readParameterIntoTuple<long>(nullptr);
+  readParameterIntoTuple<long,long>(nullptr);
+  std::tuple<> t0;
+  std::tuple_cat<>(t0, t0);
+  FunctionType<CallingParameter<>, ReturningParameter<>> ft1;
+  FunctionType<CallingParameter<long>, ReturningParameter<>> ft2;
+  FunctionType<CallingParameter<long,long>, ReturningParameter<>> ft3;
+
+  LuaFunction<CallingParameter<>,ReturningParameter<>,calllback1> lf1;
+
+  LuaFunction<CallingParameter<long>,ReturningParameter<>,calllback2> lf2;
+ }
 
  void collectGarbagePerRangeMatcherLuaRuntime(RangeMatcherLuaRuntime & rangeMatcherLuaRuntime)
  {
@@ -665,6 +806,8 @@ void RangeMatcherMethods4Lua::registerMethods2LuaBase(std::weak_ptr<LuaBase> lua
  }};
 
 #define REGISTER(X, Y) registerFunction( #X, X, Y);
+
+ registerFunction( "rmLuaFunctionTest", LuaFunction<CallingParameter<long>,ReturningParameter<>,calllback2>::call, "test");
 
  REGISTER( rmClear, "clears the variables vector");
  REGISTER( rmNextObjectIndex, " outputs the next index of the variables vector");
