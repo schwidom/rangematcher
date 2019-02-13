@@ -79,25 +79,19 @@ namespace
   }
  };
 
- template <class ... T> struct ReadParameters;
+ template <class T> struct ReadParameters;
 
- template <class T, class ... Tp> struct ReadParameters<T, Tp...>
+ template <class T, class ... Tp> struct ReadParameters<std::tuple<T, Tp...>>
  {
   static std::tuple<T, Tp...> doIt(lua_State *L, int offset)
   {
-/* // TODO: find correct type arguments
-   return std::tuple_cat<T, Tp...>(
-    std::tuple<T>(ReadParameter<T>::doIt(L, offset)), 
-    ReadParameters<Tp...>::doIt(L, 1 + offset));
-*/
-
    return std::tuple_cat(
     std::tuple<T>(ReadParameter<T>::doIt(L, offset)), 
-    ReadParameters<Tp...>::doIt(L, 1 + offset));
+    ReadParameters<std::tuple<Tp...>>::doIt(L, 1 + offset));
   }
  };
 
- template <> struct ReadParameters<>
+ template <> struct ReadParameters<std::tuple<>>
  {
   static std::tuple<> doIt(lua_State *L, int offset)
   {
@@ -107,35 +101,13 @@ namespace
 
  void chkArguments( lua_State * L, int n, std::string functionName); // TODO : order functions
 
- template <class ... Tp> std::tuple<Tp...> readParameterIntoTuple(lua_State *L)
+ template <class T> T readParameterIntoTuple(lua_State *L)
  {
-  std::tuple<Tp...> ret;
-
-  chkArguments( L, std::tuple_size<decltype(ret)>::value, __func__);
-
-  ret = ReadParameters<Tp...>::doIt(L, 1);
-
-  return ret;
- }
-
- template <class ... T> struct ReadParametersFromTuple;
-
- template <class ... Tp> struct ReadParametersFromTuple<std::tuple<Tp...>>
- {
-  static std::tuple<Tp...> doIt(lua_State *L, int offset)
-  {
-   return  ReadParameters<Tp...>::doIt( L, offset);
-  }
- };
-
- template <class T> T readParameterIntoTuple2(lua_State *L)
- {
-  // std::tuple<Tp...> ret;
   T ret;
 
   chkArguments( L, std::tuple_size<decltype(ret)>::value, __func__);
 
-  ret = ReadParametersFromTuple<T>::doIt(L, 1);
+  ret = ReadParameters<T>::doIt(L, 1);
 
   return ret;
  }
@@ -151,7 +123,7 @@ namespace
 
    rt.lastErrorMessage = "";
    
-   auto readin = readParameterIntoTuple2<typename T_CallingParameter::type>(L); // TODO : Types...
+   auto readin = readParameterIntoTuple<typename T_CallingParameter::type>(L); 
 
    FunctionOfInterest(readin, std::tuple<>());
 
@@ -177,18 +149,16 @@ success
  void toDelete() // examplecalls // TODO
  {
   ReadParameter<long>::doIt(nullptr, 1);
-  ReadParameters<long>::doIt(nullptr, 1);
-  ReadParameters<long,long>::doIt(nullptr, 1);
-  readParameterIntoTuple<long>(nullptr);
-  readParameterIntoTuple<long,long>(nullptr);
+  ReadParameters<std::tuple<long>>::doIt(nullptr, 1);
+  ReadParameters<std::tuple<long,long>>::doIt(nullptr, 1);
+  readParameterIntoTuple<std::tuple<long>>(nullptr);
+  readParameterIntoTuple<std::tuple<long,long>>(nullptr);
   std::tuple<> t0;
   std::tuple_cat<>(t0, t0);
   FunctionType<CallingParameter<>, ReturningParameter<>> ft1;
   FunctionType<CallingParameter<long>, ReturningParameter<>> ft2;
   FunctionType<CallingParameter<long,long>, ReturningParameter<>> ft3;
-
   LuaFunction<CallingParameter<>,ReturningParameter<>,calllback1> lf1;
-
   LuaFunction<CallingParameter<long>,ReturningParameter<>,calllback2> lf2;
  }
 
