@@ -63,51 +63,73 @@ namespace
   using type = std::tuple<T...>;
  };
 
- template<class T_CallingParameter, class T_ReturningParameter>
- struct FunctionType
- {
-  using type = void (*)(typename T_CallingParameter::type, typename T_ReturningParameter::type);
- };
-
  template <class T> struct ReadParameter;
 
- template <> struct ReadParameter<long>
+ template <class T> struct P; 
+
+ template <> struct ReadParameter<P<long>>
  {
+  using returnType = long;
   static long doIt(lua_State *L, int offset) // length check is already done, pop is later expected
   {
    return lua_tointeger(L, offset); // 1
   }
  };
 
+ template<class ... T>struct tuple_type_cat;
+
+ template<class T, class ... Tp> struct tuple_type_cat<std::tuple<T>,std::tuple<Tp...>>
+ {
+  using type = std::tuple<T,Tp...>;
+ };
+
  template <class T> struct ReadParameters;
 
  template <class T, class ... Tp> struct ReadParameters<std::tuple<T, Tp...>>
  {
-  static std::tuple<T, Tp...> doIt(lua_State *L, int offset)
+  using returnType = typename tuple_type_cat<
+   std::tuple<typename ReadParameter<T>::returnType>, 
+   typename ReadParameters<std::tuple<Tp...>>::returnType
+   >::type;
+
+  // static std::tuple<T, Tp...> doIt(lua_State *L, int offset)
+  static decltype(auto) doIt(lua_State *L, int offset)
   {
    return std::tuple_cat(
-    std::tuple<T>(ReadParameter<T>::doIt(L, offset)), 
-    ReadParameters<std::tuple<Tp...>>::doIt(L, 1 + offset));
+    std::make_tuple(ReadParameter<T>::doIt(L, offset)), 
+    ReadParameters<std::tuple<Tp...>>::doIt(L, 1 + offset)
+   );
   }
  };
 
  template <> struct ReadParameters<std::tuple<>>
  {
+  using returnType = std::tuple<>;
+
   static std::tuple<> doIt(lua_State *L, int offset)
   {
    return std::tuple<>();
   }
  };
 
+ template<class T_CallingParameter, class T_ReturningParameter>
+ struct FunctionType
+ {
+  // using type = void (*)(typename T_CallingParameter::type, typename T_ReturningParameter::type);
+  // using type = void (*)(decltype(ReadParameters<T_CallingParameter>::doIt(static_cast<lua_State *>(nullptr), 0)), typename T_ReturningParameter::type);
+  using type = void (*)(typename ReadParameters<typename T_CallingParameter::type>::returnType, typename T_ReturningParameter::type);
+ };
+
  void chkArguments( lua_State * L, int n, std::string functionName); // TODO : order functions
 
- template <class T> T readParameterIntoTuple(lua_State *L)
+ template <class T> typename ReadParameters<T>::returnType readParameterIntoTuple(lua_State *L)
  {
-  T ret;
+  // T ret;
 
-  chkArguments( L, std::tuple_size<decltype(ret)>::value, __func__);
+  // chkArguments( L, std::tuple_size<decltype(ret)>::value, __func__);
+  chkArguments( L, std::tuple_size<T>::value, __func__);
 
-  ret = ReadParameters<T>::doIt(L, 1);
+  auto ret = ReadParameters<T>::doIt(L, 1);
 
   return ret;
  }
@@ -148,18 +170,18 @@ success
 
  void toDelete() // examplecalls // TODO
  {
-  ReadParameter<long>::doIt(nullptr, 1);
-  ReadParameters<std::tuple<long>>::doIt(nullptr, 1);
-  ReadParameters<std::tuple<long,long>>::doIt(nullptr, 1);
-  readParameterIntoTuple<std::tuple<long>>(nullptr);
-  readParameterIntoTuple<std::tuple<long,long>>(nullptr);
+  ReadParameter<P<long>>::doIt(nullptr, 1);
+  ReadParameters<std::tuple<P<long>>>::doIt(nullptr, 1);
+  ReadParameters<std::tuple<P<long>,P<long>>>::doIt(nullptr, 1);
+  readParameterIntoTuple<std::tuple<P<long>>>(nullptr);
+  readParameterIntoTuple<std::tuple<P<long>,P<long>>>(nullptr);
   std::tuple<> t0;
   std::tuple_cat<>(t0, t0);
   FunctionType<CallingParameter<>, ReturningParameter<>> ft1;
-  FunctionType<CallingParameter<long>, ReturningParameter<>> ft2;
-  FunctionType<CallingParameter<long,long>, ReturningParameter<>> ft3;
+  FunctionType<CallingParameter<P<long>>, ReturningParameter<>> ft2;
+  FunctionType<CallingParameter<P<long>,P<long>>, ReturningParameter<>> ft3;
   LuaFunction<CallingParameter<>,ReturningParameter<>,calllback1> lf1;
-  LuaFunction<CallingParameter<long>,ReturningParameter<>,calllback2> lf2;
+  LuaFunction<CallingParameter<P<long>>,ReturningParameter<>,calllback2> lf2;
  }
 
  void collectGarbagePerRangeMatcherLuaRuntime(RangeMatcherLuaRuntime & rangeMatcherLuaRuntime)
@@ -777,7 +799,7 @@ void RangeMatcherMethods4Lua::registerMethods2LuaBase(std::weak_ptr<LuaBase> lua
 
 #define REGISTER(X, Y) registerFunction( #X, X, Y);
 
- registerFunction( "rmLuaFunctionTest", LuaFunction<CallingParameter<long>,ReturningParameter<>,calllback2>::call, "test");
+ registerFunction( "rmLuaFunctionTest", LuaFunction<CallingParameter<P<long>>,ReturningParameter<>,calllback2>::call, "test");
 
  REGISTER( rmClear, "clears the variables vector");
  REGISTER( rmNextObjectIndex, " outputs the next index of the variables vector");
