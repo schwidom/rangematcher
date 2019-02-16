@@ -12,7 +12,7 @@
 #include <algorithm> // transform
 #include <functional> // bind
 #include <iterator> // back_inserter
-#include <utility> // pair
+#include <utility> // pair, make_index_sequence
 
 // collections
 #include <map>
@@ -113,11 +113,17 @@ namespace
  };
 
  template<class T_CallingParameter, class T_ReturningParameter>
- struct FunctionType
+ struct FunctionType1
  {
   // using type = void (*)(typename T_CallingParameter::type, typename T_ReturningParameter::type);
   // using type = void (*)(decltype(ReadParameters<T_CallingParameter>::doIt(static_cast<lua_State *>(nullptr), 0)), typename T_ReturningParameter::type);
   using type = void (*)(typename ReadParameters<typename T_CallingParameter::type>::returnType, typename T_ReturningParameter::type);
+ };
+
+ template<class T_CallingParameter, class T_ReturningParameter>
+ struct FunctionType2
+ {
+  using type = typename T_ReturningParameter::type (*)(typename ReadParameters<typename T_CallingParameter::type>::returnType);
  };
 
  void chkArguments( lua_State * L, int n, std::string functionName); // TODO : order functions
@@ -135,8 +141,8 @@ namespace
  }
 
  template <class T_CallingParameter, class T_ReturningParameter, 
-  typename FunctionType<T_CallingParameter, T_ReturningParameter>::type FunctionOfInterest>
- struct LuaFunction // WEITERBEI // TODO
+  typename FunctionType1<T_CallingParameter, T_ReturningParameter>::type FunctionOfInterest>
+ struct LuaFunction1 // WEITERBEI // TODO
  {
   // typedef int (*lua_CFunction) (lua_State *L);
   static int call(lua_State *L)
@@ -153,19 +159,107 @@ namespace
   }
  };
 
+ template <class T_CallingParameter, class T_ReturningParameter, 
+  typename FunctionType2<T_CallingParameter, T_ReturningParameter>::type FunctionOfInterest>
+ struct LuaFunction2 // WEITERBEI // TODO
+ {
+  // typedef int (*lua_CFunction) (lua_State *L);
+  static int call(lua_State *L)
+  {
+   auto & rt = *lua2RangeMatcherLuaRuntime.at(L);
+
+   rt.lastErrorMessage = "";
+   
+   auto readin = readParameterIntoTuple<typename T_CallingParameter::type>(L); 
+
+   std::tuple<> ret = FunctionOfInterest(readin);
+
+   return 0;
+  }
+ };
+
+ // TODO : fix naming of T_CallingReturnType / returnType
+ template<class T_CallingParameter, class T_ReturningParameter, 
+  class T_CallingReturnType = typename ReadParameters<typename T_CallingParameter::type>::returnType,
+  class T_ReturningReturnType = typename ReadParameters<typename T_ReturningParameter::type>::returnType> struct FunctionType3;
+
+ template<class ... T_CallingParameterP, class ... T_ReturningParameterP, 
+  class ... T_CallingReturnTypeP, class ... T_ReturningReturnTypeP> 
+ struct FunctionType3<CallingParameter<T_CallingParameterP...>, ReturningParameter<T_ReturningParameterP...>
+  , std::tuple<T_CallingReturnTypeP...>, std::tuple<T_ReturningReturnTypeP...>>
+ {
+  using type = std::tuple<T_ReturningReturnTypeP...> (*)(T_CallingReturnTypeP...); 
+
+  private:
+  using returnType = std::tuple<T_ReturningReturnTypeP...>;
+  using callType = std::tuple<T_CallingReturnTypeP...>;
+
+  template <size_t ... I>
+  static std::tuple<T_ReturningReturnTypeP...> call2(type function, std::index_sequence<I...> is, callType parametersTuple)
+  {
+   return function(std::get<I>(parametersTuple)...);
+  }
+
+  public:
+  static std::tuple<T_ReturningReturnTypeP...> call(type function, callType parametersTuple)
+  {
+   return call2(function, std::make_index_sequence<sizeof...(T_CallingReturnTypeP)>(), parametersTuple);
+  }
+ };
+
+ template <class T_CallingParameter, class T_ReturningParameter, 
+  typename FunctionType3<T_CallingParameter, T_ReturningParameter>::type FunctionOfInterest>
+ struct LuaFunction3 // WEITERBEI // TODO
+ {
+  // typedef int (*lua_CFunction) (lua_State *L);
+  static int call(lua_State *L)
+  {
+   auto & rt = *lua2RangeMatcherLuaRuntime.at(L);
+
+   rt.lastErrorMessage = "";
+   
+   auto readin = readParameterIntoTuple<typename T_CallingParameter::type>(L); 
+
+   std::tuple<> ret = FunctionType3<T_CallingParameter, T_ReturningParameter>::call(FunctionOfInterest, readin);
+
+   return 0;
+  }
+ };
+
  void calllback1(std::tuple<>,std::tuple<>)
  {
  }
 
- void calllback2(std::tuple<long> t1,std::tuple<>)
- { 
-  std::cout << __func__ << " " << std::get<0>(t1) << std::endl;
 /*
-+<< l rmLuaFunctionTest( 1)
-executing lua:  rmLuaFunctionTest( 1)
-calllback2 1
+<< l rmLuaFunctionTest1(1)    
+executing lua:  rmLuaFunctionTest1(1)
+callback2_1 1
+success
+<< l rmLuaFunctionTest2(1)
+executing lua:  rmLuaFunctionTest2(1)
+callback2_2 1
+success
+<< l rmLuaFunctionTest3(1)
+executing lua:  rmLuaFunctionTest3(1)
+callback2_3 1
 success
 */
+
+ void callback2_1(std::tuple<long> t1,std::tuple<>)
+ { 
+  std::cout << __func__ << " " << std::get<0>(t1) << std::endl;
+ }
+
+ std::tuple<> callback2_2(std::tuple<long> t1)
+ { 
+  std::cout << __func__ << " " << std::get<0>(t1) << std::endl;
+  return std::tuple<>();
+ }
+
+ std::tuple<> callback2_3(long t1)
+ { 
+  std::cout << __func__ << " " << t1 << std::endl;
+  return std::tuple<>();
  }
 
  void toDelete() // examplecalls // TODO
@@ -177,11 +271,11 @@ success
   readParameterIntoTuple<std::tuple<P<long>,P<long>>>(nullptr);
   std::tuple<> t0;
   std::tuple_cat<>(t0, t0);
-  FunctionType<CallingParameter<>, ReturningParameter<>> ft1;
-  FunctionType<CallingParameter<P<long>>, ReturningParameter<>> ft2;
-  FunctionType<CallingParameter<P<long>,P<long>>, ReturningParameter<>> ft3;
-  LuaFunction<CallingParameter<>,ReturningParameter<>,calllback1> lf1;
-  LuaFunction<CallingParameter<P<long>>,ReturningParameter<>,calllback2> lf2;
+  FunctionType1<CallingParameter<>, ReturningParameter<>> ft1;
+  FunctionType1<CallingParameter<P<long>>, ReturningParameter<>> ft2;
+  FunctionType1<CallingParameter<P<long>,P<long>>, ReturningParameter<>> ft3;
+  LuaFunction1<CallingParameter<>,ReturningParameter<>,calllback1> lf1;
+  LuaFunction1<CallingParameter<P<long>>,ReturningParameter<>,callback2_1> lf2;
  }
 
  void collectGarbagePerRangeMatcherLuaRuntime(RangeMatcherLuaRuntime & rangeMatcherLuaRuntime)
@@ -799,7 +893,9 @@ void RangeMatcherMethods4Lua::registerMethods2LuaBase(std::weak_ptr<LuaBase> lua
 
 #define REGISTER(X, Y) registerFunction( #X, X, Y);
 
- registerFunction( "rmLuaFunctionTest", LuaFunction<CallingParameter<P<long>>,ReturningParameter<>,calllback2>::call, "test");
+ registerFunction( "rmLuaFunctionTest1", LuaFunction1<CallingParameter<P<long>>,ReturningParameter<>,callback2_1>::call, "test1");
+ registerFunction( "rmLuaFunctionTest2", LuaFunction2<CallingParameter<P<long>>,ReturningParameter<>,callback2_2>::call, "test2");
+ registerFunction( "rmLuaFunctionTest3", LuaFunction3<CallingParameter<P<long>>,ReturningParameter<>,callback2_3>::call, "test3");
 
  REGISTER( rmClear, "clears the variables vector");
  REGISTER( rmNextObjectIndex, " outputs the next index of the variables vector");
