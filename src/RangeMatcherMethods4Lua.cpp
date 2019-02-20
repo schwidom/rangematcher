@@ -68,6 +68,7 @@ namespace
 
  // NOTE: P<T> represents lua parameters of type T which are to be used inside the functions
  // NOTE: V<T> represents parameters of type T which are represented by descriptors referring to "vectorOfObjects"
+ // NOTE: V<T> ... in case of returning the parameter gets saved and the descriptor is returned
 
  template <class T> struct ReadParameter;
 
@@ -143,13 +144,36 @@ namespace
  template <> struct WriteParameter<P<long>>
  {
   using convertedType = long;
-  static long doIt(lua_State *L, int offset, convertedType value) 
+  static int doIt(lua_State *L, int offset, convertedType value) 
   {
    // TODO : prove stack size
    lua_pushinteger(L, value);
+   return 1;
   }
  };
 
+ template <> struct WriteParameter<V<long>> // TODO : addTypes variant
+ {
+  using convertedType = long;
+  static int doIt(lua_State *L, int offset, convertedType value) 
+  {
+   auto & rt = *lua2RangeMatcherLuaRuntime.at(L); // TODO : provide already existing rt
+
+   // examplecode from rmT
+   // std::unique_ptr<Any<T>> pattern(std::make_unique<Any<T>>(creator(stringOfInterest)));
+   // pattern -> template addTypes<Tadditional...>();
+   // rt.vectorOfObjects.push_back( std::move(pattern));
+
+   using T = long;
+
+   std::unique_ptr<Any<T>> returnValue(std::make_unique<Any<T>>(value));
+   rt.vectorOfObjects.push_back( std::move(returnValue));
+
+   // TODO : prove stack size
+   lua_pushinteger(L, rt.vectorOfObjects.size() - 1);
+   return 1;
+  }
+ };
 
  template < std::size_t... Ns , typename... Ts >
  auto tail_impl( std::index_sequence<Ns...> , std::tuple<Ts...> t )
@@ -173,10 +197,11 @@ namespace
    >::type;
 
   // static std::tuple<T, Tp...> doIt(lua_State *L, int offset)
-  static void doIt(lua_State *L, int offset, convertedType parameters)
+  static int doIt(lua_State *L, int offset, convertedType parameters)
   {
-    WriteParameter<T>::doIt(L, offset, std::get<0>(parameters));
-    WriteParameters<std::tuple<Tp...>>::doIt(L, 1 + offset, tail(parameters));
+    return 0 
+     + WriteParameter<T>::doIt(L, offset, std::get<0>(parameters));
+     + WriteParameters<std::tuple<Tp...>>::doIt(L, 1 + offset, tail(parameters));
   }
  };
 
@@ -184,9 +209,9 @@ namespace
  {
   using convertedType = std::tuple<>;
 
-  static std::tuple<> doIt(lua_State *L, int offset, std::tuple<>)
+  static int doIt(lua_State *L, int offset, std::tuple<>)
   {
-   return std::tuple<>();
+   return 0;
   }
  };
 
@@ -207,8 +232,8 @@ namespace
  template <class T> int writeParameterFromTuple(lua_State *L, typename WriteParameters<T>::convertedType parameters)
  {
   // TODO prove possible needed stack extension
-  WriteParameters<T>::doIt(L, 1, parameters);
-  return std::tuple_size<T>::value;
+  return WriteParameters<T>::doIt(L, 1, parameters);
+  // return std::tuple_size<T>::value;
  }
 
  template<class T_CallingParameter, class T_ReturningParameter>
@@ -875,6 +900,12 @@ success
   return 0;
  }
 
+ std::tuple<long> callback_rmDebugSetInt2(long l)
+ {
+  std::cout << __func__ << std::endl;
+  return std::tuple<long>( l);
+ }
+
  int rmDebugGetInt(lua_State * L)
  {
   auto & rt = *lua2RangeMatcherLuaRuntime.at(L);
@@ -898,12 +929,6 @@ success
   lua_pushinteger(L, *savedInt);
   
   return 1;
- }
-
- std::tuple<> callback_rmDebugGetInt(long l)
- {
-  std::cout << __func__ << std::endl;
-  return std::tuple<>();
  }
 
  std::tuple<long> callback_rmDebugGetInt2(long l)
@@ -1012,8 +1037,9 @@ void RangeMatcherMethods4Lua::registerMethods2LuaBase(std::weak_ptr<LuaBase> lua
 
  REGISTER( rmDebugSetInt, "saves the given integer value to the variables vector");
  REGISTER( rmDebugGetInt, "outputs the integer value from the variables vector at the given position");
- registerFunction( "rmDebugGetInt2", LuaFunction3<CallingParameter<V<long>>,ReturningParameter<>,callback_rmDebugGetInt>::call, "test4");
- registerFunction( "rmDebugGetInt3", LuaFunction3<CallingParameter<V<long>>,ReturningParameter<P<long>>,callback_rmDebugGetInt2>::call, "test5");
+
+ registerFunction( "rmDebugSetInt2", LuaFunction3<CallingParameter<P<long>>,ReturningParameter<V<long>>,callback_rmDebugSetInt2>::call, "saves the given integer value to the variables vector v2");
+ registerFunction( "rmDebugGetInt2", LuaFunction3<CallingParameter<V<long>>,ReturningParameter<P<long>>,callback_rmDebugGetInt2>::call, "outputs the integer value from the variables vector at the given position v2");
 
  REGISTER( rmFileRead, "reads a file");
  REGISTER( rmFunctions, "returns all function names");
