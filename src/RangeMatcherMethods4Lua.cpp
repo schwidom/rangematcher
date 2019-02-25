@@ -12,13 +12,15 @@
 #include <algorithm> // transform
 #include <functional> // bind
 #include <iterator> // back_inserter
+#include <sstream> // ostringstream
+#include <string> // to_string
 #include <utility> // pair, make_index_sequence
 
 // collections
 #include <map>
 #include <set>
-#include <sstream> // ostringstream
 #include <vector>
+#include <list>
 
 #include <tuple>
 
@@ -78,6 +80,15 @@ namespace
   static convertedType doIt(lua_State *L, int offset) // length check is already done, pop is later expected
   {
    return lua_tointeger(L, offset); // 1
+  }
+ };
+
+ template <> struct ReadParameter<P<std::string>>
+ {
+  using convertedType = std::string;
+  static convertedType doIt(lua_State *L, int offset) // length check is already done, pop is later expected
+  {
+   return lua_tostring(L, offset); // 1
   }
  };
 
@@ -175,6 +186,29 @@ namespace
   }
  };
 
+ template <> struct WriteParameter<V<std::shared_ptr<std::vector<char>>>> // TODO : addTypes variant
+ {
+  using convertedType = std::shared_ptr<std::vector<char>>;
+  static int doIt(lua_State *L, int offset, convertedType value) 
+  {
+   auto & rt = *lua2RangeMatcherLuaRuntime.at(L); // TODO : provide already existing rt
+
+   // examplecode from rmT
+   // std::unique_ptr<Any<T>> pattern(std::make_unique<Any<T>>(creator(stringOfInterest)));
+   // pattern -> template addTypes<Tadditional...>();
+   // rt.vectorOfObjects.push_back( std::move(pattern));
+
+   using T = std::shared_ptr<std::vector<char>>;
+
+   std::unique_ptr<Any<T>> returnValue(std::make_unique<Any<T>>(value));
+   rt.vectorOfObjects.push_back( std::move(returnValue));
+
+   // TODO : prove stack size
+   lua_pushinteger(L, rt.vectorOfObjects.size() - 1);
+   return 1;
+  }
+ };
+
  template < std::size_t... Ns , typename... Ts >
  auto tail_impl( std::index_sequence<Ns...> , std::tuple<Ts...> t )
  {
@@ -216,6 +250,7 @@ namespace
  };
 
  void chkArguments( lua_State * L, int n, std::string functionName); // TODO : order functions
+ int chkArguments( lua_State * L, int nMin, int nMax, std::string functionName); // TODO : order functions
 
  template <class T> typename ReadParameters<T>::convertedType readParameterIntoTuple(lua_State *L)
  {
@@ -225,6 +260,17 @@ namespace
   auto ret = ReadParameters<T>::doIt(L, 1);
 
   lua_pop(L, numberOfArguments);
+
+  return ret;
+ }
+
+ template <class T> typename ReadParameters<T>::convertedType readParameterIntoTupleN(lua_State *L, int offset)
+ {
+  int numberOfArguments{std::tuple_size<T>::value};
+
+  auto ret = ReadParameters<T>::doIt(L, offset);
+
+  // lua_pop(L, numberOfArguments); // pop after this
 
   return ret;
  }
@@ -290,7 +336,7 @@ namespace
 
  template<class T_CallingParameter, class T_ReturningParameter, 
   class T_CallingReturnType = typename ReadParameters<typename T_CallingParameter::type>::convertedType,
-  class T_ReturningReturnType = typename ReadParameters<typename T_ReturningParameter::type>::convertedType> struct FunctionType3;
+  class T_ReturningReturnType = typename WriteParameters<typename T_ReturningParameter::type>::convertedType> struct FunctionType3;
 
  template<class ... T_CallingParameterP, class ... T_ReturningParameterP, 
   class ... T_CallingConvertedTypeP, class ... T_ReturningConvertedTypeP> 
@@ -335,6 +381,56 @@ namespace
    typename FunctionType3Instance::returnType ret = FunctionType3Instance::call(FunctionOfInterest, readin);
 
    return writeParameterFromTuple<typename T_ReturningParameter::type>(L, ret);
+  }
+ };
+
+ template <class T_CallingParameter, class T_ReturningParameter, 
+  typename FunctionType3<T_CallingParameter, T_ReturningParameter>::type FunctionOfInterest>
+ struct LuaFunction3N // WEITERBEI // TODO : tests overdue
+ {
+  // typedef int (*lua_CFunction) (lua_State *L);
+  static int call(lua_State *L)
+  {
+   auto & rt = *lua2RangeMatcherLuaRuntime.at(L); // TODO : implement own Alloc scheme and extend with own control data
+
+   rt.lastErrorMessage = "";
+   
+   using FunctionType3Instance = FunctionType3<T_CallingParameter, T_ReturningParameter>;
+
+   int ret = 0;
+
+   int numberOfArguments = chkArguments( L, 0, std::numeric_limits<int>::max(), __func__);
+
+   std::list< typename ReadParameters<typename T_CallingParameter::type>::convertedType > queue;
+
+   int inputTupleSize{std::tuple_size<typename T_CallingParameter::type>::value}; 
+
+   if( 0 == inputTupleSize && 0 != numberOfArguments)
+   { 
+    raiseLuaError( L, "function with 0 parameters must get exactly 0 parameters");
+   }
+
+   for( int argumentNr = 0 ; argumentNr < numberOfArguments; argumentNr += inputTupleSize)
+   {
+
+    std::cout << "chkArguments " << chkArguments( L, 0, std::numeric_limits<int>::max(), __func__) << std::endl;
+    std::cout << "argumentNr " << argumentNr <<  std::endl;
+
+    auto readin = readParameterIntoTupleN<typename T_CallingParameter::type>(L, 1 + argumentNr);
+
+    queue.push_back(readin);
+   }
+
+   lua_pop(L, numberOfArguments); 
+
+   for( auto & readin : queue)
+   {
+    typename FunctionType3Instance::returnType res = FunctionType3Instance::call(FunctionOfInterest, readin);
+
+    ret += writeParameterFromTuple<typename T_ReturningParameter::type>(L, res);
+   }
+   
+   return ret;
   }
  };
 
@@ -740,6 +836,14 @@ success
   return numberOfArguments;
  }
 
+ std::tuple<std::shared_ptr<std::vector<char>>>
+  callback_rmFileRead( std::string stringOfInterest) // see callback_rmDebugSetInt2
+ {
+   // if( rt.debug){ std::cout << "stringOfInterest " << stringOfInterest << std::endl;}
+   std::cout << "stringOfInterest " << stringOfInterest << std::endl;
+   return std::make_tuple(std::shared_ptr<std::vector<char>>(FileToVector(stringOfInterest).get()));
+ }
+
  int rmMatchRanges(lua_State * L)
  {
   auto & rt = *lua2RangeMatcherLuaRuntime.at(L);
@@ -1041,7 +1145,9 @@ void RangeMatcherMethods4Lua::registerMethods2LuaBase(std::weak_ptr<LuaBase> lua
  registerFunction( "rmDebugSetInt2", LuaFunction3<CallingParameter<P<long>>,ReturningParameter<V<long>>,callback_rmDebugSetInt2>::call, "saves the given integer value to the variables vector v2");
  registerFunction( "rmDebugGetInt2", LuaFunction3<CallingParameter<V<long>>,ReturningParameter<P<long>>,callback_rmDebugGetInt2>::call, "outputs the integer value from the variables vector at the given position v2");
 
- REGISTER( rmFileRead, "reads a file");
+ // REGISTER( rmFileRead, "reads one file per parameter");
+ registerFunction( "rmFileRead", LuaFunction3N<CallingParameter<P<std::string>>,ReturningParameter<V<std::shared_ptr<std::vector<char>>>>,callback_rmFileRead>::call, "reads one file per parameter");
+
  REGISTER( rmFunctions, "returns all function names");
  REGISTER( rmHelp, "outputs help");
  REGISTER( rmMatchRanges, "creates a vector of match ranges from a non overlapping matcher");
