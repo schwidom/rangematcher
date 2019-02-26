@@ -282,58 +282,6 @@ namespace
   // return std::tuple_size<T>::value;
  }
 
- template<class T_CallingParameter, class T_ReturningParameter>
- struct FunctionType1
- {
-  // using type = void (*)(typename T_CallingParameter::type, typename T_ReturningParameter::type);
-  // using type = void (*)(decltype(ReadParameters<T_CallingParameter>::doIt(static_cast<lua_State *>(nullptr), 0)), typename T_ReturningParameter::type);
-  using type = void (*)(typename ReadParameters<typename T_CallingParameter::type>::convertedType, typename T_ReturningParameter::type);
- };
-
- template<class T_CallingParameter, class T_ReturningParameter>
- struct FunctionType2
- {
-  using type = typename T_ReturningParameter::type (*)(typename ReadParameters<typename T_CallingParameter::type>::convertedType);
- };
-
- template <class T_CallingParameter, class T_ReturningParameter, 
-  typename FunctionType1<T_CallingParameter, T_ReturningParameter>::type FunctionOfInterest>
- struct LuaFunction1 // WEITERBEI // TODO
- {
-  // typedef int (*lua_CFunction) (lua_State *L);
-  static int call(lua_State *L)
-  {
-   auto & rt = *lua2RangeMatcherLuaRuntime.at(L);
-
-   rt.lastErrorMessage = "";
-   
-   auto readin = readParameterIntoTuple<typename T_CallingParameter::type>(L); 
-
-   FunctionOfInterest(readin, std::tuple<>());
-
-   return 0;
-  }
- };
-
- template <class T_CallingParameter, class T_ReturningParameter, 
-  typename FunctionType2<T_CallingParameter, T_ReturningParameter>::type FunctionOfInterest>
- struct LuaFunction2 // WEITERBEI // TODO
- {
-  // typedef int (*lua_CFunction) (lua_State *L);
-  static int call(lua_State *L)
-  {
-   auto & rt = *lua2RangeMatcherLuaRuntime.at(L);
-
-   rt.lastErrorMessage = "";
-   
-   auto readin = readParameterIntoTuple<typename T_CallingParameter::type>(L); 
-
-   std::tuple<> ret = FunctionOfInterest(readin);
-
-   return 0;
-  }
- };
-
  template<class T_CallingParameter, class T_ReturningParameter, 
   class T_CallingReturnType = typename ReadParameters<typename T_CallingParameter::type>::convertedType,
   class T_ReturningReturnType = typename WriteParameters<typename T_ReturningParameter::type>::convertedType> struct FunctionType3;
@@ -434,35 +382,12 @@ namespace
   }
  };
 
- void calllback1(std::tuple<>,std::tuple<>)
- {
- }
-
 /*
-<< l rmLuaFunctionTest1(1)    
-executing lua:  rmLuaFunctionTest1(1)
-callback2_1 1
-success
-<< l rmLuaFunctionTest2(1)
-executing lua:  rmLuaFunctionTest2(1)
-callback2_2 1
-success
 << l rmLuaFunctionTest3(1)
 executing lua:  rmLuaFunctionTest3(1)
 callback2_3 1
 success
 */
-
- void callback2_1(std::tuple<long> t1,std::tuple<>)
- { 
-  std::cout << __func__ << " " << std::get<0>(t1) << std::endl;
- }
-
- std::tuple<> callback2_2(std::tuple<long> t1)
- { 
-  std::cout << __func__ << " " << std::get<0>(t1) << std::endl;
-  return std::tuple<>();
- }
 
  std::tuple<> callback2_3(long t1)
  { 
@@ -479,11 +404,6 @@ success
   readParameterIntoTuple<std::tuple<P<long>,P<long>>>(nullptr);
   std::tuple<> t0;
   std::tuple_cat<>(t0, t0);
-  FunctionType1<CallingParameter<>, ReturningParameter<>> ft1;
-  FunctionType1<CallingParameter<P<long>>, ReturningParameter<>> ft2;
-  FunctionType1<CallingParameter<P<long>,P<long>>, ReturningParameter<>> ft3;
-  LuaFunction1<CallingParameter<>,ReturningParameter<>,calllback1> lf1;
-  LuaFunction1<CallingParameter<P<long>>,ReturningParameter<>,callback2_1> lf2;
   ReadParameters<std::tuple<>> rp1;
   WriteParameters<std::tuple<>> wp1;
   WriteParameters<std::tuple<>>::doIt(nullptr, 1, std::tuple<>());
@@ -1129,8 +1049,6 @@ void RangeMatcherMethods4Lua::registerMethods2LuaBase(std::weak_ptr<LuaBase> lua
 
 #define REGISTER(X, Y) registerFunction( #X, X, Y);
 
- registerFunction( "rmLuaFunctionTest1", LuaFunction1<CallingParameter<P<long>>,ReturningParameter<>,callback2_1>::call, "test1");
- registerFunction( "rmLuaFunctionTest2", LuaFunction2<CallingParameter<P<long>>,ReturningParameter<>,callback2_2>::call, "test2");
  registerFunction( "rmLuaFunctionTest3", LuaFunction3<CallingParameter<P<long>>,ReturningParameter<>,callback2_3>::call, "test3");
 
  REGISTER( rmClear, "clears the variables vector");
