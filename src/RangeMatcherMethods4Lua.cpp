@@ -1,5 +1,7 @@
 
 // TODO : remove outdated TODOs
+// - extract tools
+// - LuaFunction3[N] for creating and expanding vectors
 
 #include "Any.hpp"
 #include "Console.hpp"
@@ -526,46 +528,16 @@ success
   return std::make_tuple(std::make_shared<PatternString>(stringOfInterest));
  }
 
- int rmNamedPatternRange(lua_State * L)
+ std::tuple<std::shared_ptr<const NamedPatternRange>> cb_rmNamedPatternRange(std::string nameString, std::shared_ptr<const Pattern> patternVon, std::shared_ptr<const Pattern> patternBis)
  {
-  auto & rt = *lua2RangeMatcherLuaRuntime.at(L);
-
-  rt.lastErrorMessage = "";
-
-  int numberOfArguments{3};
-
-  chkArguments( L, numberOfArguments, __func__);
- 
-  std::string nameString{lua_tostring(L, 1)};
-  long patternVonInt{lua_tointeger(L, 2)};
-  long patternBisInt{lua_tointeger(L, 3)};
-
-  lua_pop(L, numberOfArguments);
-
-  if( rt.debug){ std::cout << "nameString " << nameString << std::endl;}
-
-  auto * patternVon(rt.vectorOfObjects.at(patternVonInt)->get<std::shared_ptr<Pattern>>());
-  auto * patternBis(rt.vectorOfObjects.at(patternBisInt)->get<std::shared_ptr<Pattern>>());
-  
-  if( !patternVon)
-  {
-   raiseLuaError( L, "wrong type at index "+ std::to_string(patternVonInt) + ", expected pattern, argument 2");
-  }
-
-  if( !patternBis)
-  {
-   raiseLuaError( L, "wrong type at index "+ std::to_string(patternBisInt) + ", expected pattern, argument 3");
-  }
-
   using CNPT = const NamedPatternRange;
 
-  auto cnpt( std::make_shared<CNPT>(CNPT::I{nameString, *patternVon, *patternBis}));
+  auto cnpt( std::make_shared<CNPT>(CNPT::I{nameString, patternVon, patternBis}));
 
-  rt.vectorOfObjects.push_back( std::make_unique<Any<std::shared_ptr<CNPT>>>(std::move(cnpt)));
+  std::cout << "cb_rmNamedPatternRange" << std::endl;
+  std::cout << nameString << std::endl;
 
-  lua_pushinteger(L, rt.vectorOfObjects.size() - 1);
-
-  return 1;
+  return std::make_tuple(cnpt);
  }
 
  int rmNamedPatternRangeVector(lua_State * L)
@@ -1013,18 +985,23 @@ void RangeMatcherMethods4Lua::registerMethods2LuaBase(std::weak_ptr<LuaBase> lua
  REGISTER( rmMatchRanges, "creates a vector of match ranges from a non overlapping matcher");
 
  REGISTER( rmMatchRanges2Lua, "converts the match ranges to lua datatypes");
- REGISTER( rmNamedPatternRange, "a named pattern range, consists of a name and 2 pattern");
+
+ registerFunction( "rmNamedPatternRange", LuaFunction3<
+  CallingParameter<P<std::string>, V<std::shared_ptr<const Pattern>>, V<std::shared_ptr<const Pattern>>>,
+  ReturningParameter<V<std::shared_ptr<const NamedPatternRange>>>, cb_rmNamedPatternRange>::call,
+  "a named pattern range, consists of a name and 2 pattern");
+
  REGISTER( rmNamedPatternRangeVector, "a vector of named pattern ranges");
  REGISTER( rmNonOverlappingMatcher, "creates a non overlapping matcher from all given pattern ranges ");
 
  registerFunction( "rmPatternRegex", LuaFunction3N<
   CallingParameter<P<std::string>>,
-  ReturningParameter<V<std::shared_ptr<PatternRegex>, std::shared_ptr<Pattern>>>,cb_rmPatternRegex>::call,
+  ReturningParameter<V<std::shared_ptr<PatternRegex>, std::shared_ptr<const Pattern>>>,cb_rmPatternRegex>::call,
   "reads one file per parameter");
 
  registerFunction( "rmPatternString", LuaFunction3N<
   CallingParameter<P<std::string>>,
-  ReturningParameter<V<std::shared_ptr<PatternString>, std::shared_ptr<Pattern>>>,cb_rmPatternString>::call,
+  ReturningParameter<V<std::shared_ptr<PatternString>, std::shared_ptr<const Pattern>>>,cb_rmPatternString>::call,
   "reads one file per parameter");
 
  registerFunction( "rmToggleDebug", LuaFunction3<
