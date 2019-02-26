@@ -66,13 +66,22 @@ namespace
  };
 
  template <class T> struct P; 
- template <class T> struct V; 
+ template <class ... T> struct V; 
 
  // NOTE: P<T> represents lua parameters of type T which are to be used inside the functions
  // NOTE: V<T> represents parameters of type T which are represented by descriptors referring to "vectorOfObjects"
  // NOTE: V<T> ... in case of returning the parameter gets saved and the descriptor is returned
 
  template <class T> struct ReadParameter;
+
+ template <> struct ReadParameter<P<lua_State>> // TODO : possibly L<lua_State> (must not get parameter) + returning parameter count as constexpr
+ {
+  using convertedType = lua_State *;
+  static convertedType doIt(lua_State *L, int offset) // length check is already done, pop is later expected
+  {
+   return L;
+  }
+ };
 
  template <> struct ReadParameter<P<long>>
  {
@@ -163,19 +172,12 @@ namespace
   }
  };
 
- template <> struct WriteParameter<V<long>> // TODO : addTypes variant
+ template <class T > struct WriteParameter<V<T>> // TODO : addTypes variant
  {
-  using convertedType = long;
+  using convertedType = T;
   static int doIt(lua_State *L, int offset, convertedType value) 
   {
    auto & rt = *lua2RangeMatcherLuaRuntime.at(L); // TODO : provide already existing rt
-
-   // examplecode from rmT
-   // std::unique_ptr<Any<T>> pattern(std::make_unique<Any<T>>(creator(stringOfInterest)));
-   // pattern -> template addTypes<Tadditional...>();
-   // rt.vectorOfObjects.push_back( std::move(pattern));
-
-   using T = long;
 
    std::unique_ptr<Any<T>> returnValue(std::make_unique<Any<T>>(value));
    rt.vectorOfObjects.push_back( std::move(returnValue));
@@ -186,21 +188,15 @@ namespace
   }
  };
 
- template <> struct WriteParameter<V<std::shared_ptr<std::vector<char>>>> // TODO : addTypes variant
+ template <class T, class ... Tadditional > struct WriteParameter<V<T, Tadditional...>> // TODO : addTypes variant
  {
-  using convertedType = std::shared_ptr<std::vector<char>>;
+  using convertedType = T;
   static int doIt(lua_State *L, int offset, convertedType value) 
   {
    auto & rt = *lua2RangeMatcherLuaRuntime.at(L); // TODO : provide already existing rt
 
-   // examplecode from rmT
-   // std::unique_ptr<Any<T>> pattern(std::make_unique<Any<T>>(creator(stringOfInterest)));
-   // pattern -> template addTypes<Tadditional...>();
-   // rt.vectorOfObjects.push_back( std::move(pattern));
-
-   using T = std::shared_ptr<std::vector<char>>;
-
    std::unique_ptr<Any<T>> returnValue(std::make_unique<Any<T>>(value));
+   returnValue -> template addTypes<Tadditional...>();
    rt.vectorOfObjects.push_back( std::move(returnValue));
 
    // TODO : prove stack size
@@ -266,13 +262,7 @@ namespace
 
  template <class T> typename ReadParameters<T>::convertedType readParameterIntoTupleN(lua_State *L, int offset)
  {
-  int numberOfArguments{std::tuple_size<T>::value};
-
-  auto ret = ReadParameters<T>::doIt(L, offset);
-
-  // lua_pop(L, numberOfArguments); // pop after this
-
-  return ret;
+  return ReadParameters<T>::doIt(L, offset);
  }
 
  template <class T> int writeParameterFromTuple(lua_State *L, typename WriteParameters<T>::convertedType parameters)
@@ -491,61 +481,21 @@ success
   return 1;
  }
 
- template <class T, class ... Tadditional> int rmT(lua_State * L, std::function<T(std::string)> creator) 
+ std::tuple<long> callback_rmNextObjectIndex(lua_State * L)
  {
   auto & rt = *lua2RangeMatcherLuaRuntime.at(L);
-
-  rt.lastErrorMessage = "";
-
-  int numberOfArguments = chkArguments( L, 1, std::numeric_limits<int>::max(), __func__);
- 
-  for( int i= 0; i< numberOfArguments; ++i)
-  {
-   std::string stringOfInterest{lua_tostring(L, i + 1)};
-
-   if( rt.debug){ std::cout << "stringOfInterest " << stringOfInterest << std::endl;}
-
-   std::unique_ptr<Any<T>> pattern(std::make_unique<Any<T>>(creator(stringOfInterest)));
-
-   pattern -> template addTypes<Tadditional...>();
-
-   rt.vectorOfObjects.push_back( std::move(pattern));
-  }
-
-  lua_pop(L, numberOfArguments);
-  
-  for( int i= 0; i< numberOfArguments; ++i)
-  {
-   lua_pushinteger(L, rt.vectorOfObjects.size() - numberOfArguments + i);
-  }
-
-  return numberOfArguments;
+  return std::make_tuple(static_cast<long>(rt.vectorOfObjects.size()));
  }
 
- int rmPatternString(lua_State * L)
+ // TODO : template variant
+ std::tuple<std::shared_ptr<PatternRegex>> callback_rmPatternRegex(std::string stringOfInterest)
  {
-  auto & rt = *lua2RangeMatcherLuaRuntime.at(L);
-
-  using T = PatternString;
-  using ST = std::shared_ptr<T>;
-
-  auto creator = [](std::string stringOfInterest){ return std::make_shared<T>(stringOfInterest);};
- 
-  return rmT<ST,std::shared_ptr<Pattern>>(L, creator);
+  return std::make_tuple(std::make_shared<PatternRegex>(stringOfInterest));
  }
 
- int rmPatternRegex(lua_State * L)
+ std::tuple<std::shared_ptr<PatternString>> callback_rmPatternString(std::string stringOfInterest)
  {
-  auto & rt = *lua2RangeMatcherLuaRuntime.at(L);
-
-  rt.lastErrorMessage = "";
-
-  using T = PatternRegex;
-  using ST = std::shared_ptr<T>;
-
-  auto creator = [](std::string stringOfInterest){ return std::make_shared<T>(stringOfInterest);};
- 
-  return rmT<ST,std::shared_ptr<Pattern>>(L, creator);
+  return std::make_tuple(std::make_shared<PatternString>(stringOfInterest));
  }
 
  int rmNamedPatternRange(lua_State * L)
@@ -725,35 +675,6 @@ success
   rt.vectorOfObjects.clear();
 
   return 0;
- }
-
- int rmFileRead(lua_State * L)
- {
-  auto & rt = *lua2RangeMatcherLuaRuntime.at(L);
-
-  rt.lastErrorMessage = "";
-
-  int numberOfArguments = chkArguments( L, 1, std::numeric_limits<int>::max(), __func__);
-
-  for( int i= 0; i< numberOfArguments; ++i)
-  {
-   std::string stringOfInterest{lua_tostring(L, i + 1)};
-
-   if( rt.debug){ std::cout << "stringOfInterest " << stringOfInterest << std::endl;}
-
-   std::shared_ptr<std::vector<char>> fileVector( FileToVector(stringOfInterest).get());
-
-   rt.vectorOfObjects.push_back( std::make_unique<Any<decltype(fileVector)>>(std::move(fileVector)));
-  }
-
-  lua_pop(L, numberOfArguments);
-
-  for( int i= 0; i< numberOfArguments; ++i)
-  {
-   lua_pushinteger(L, rt.vectorOfObjects.size() - numberOfArguments + i);
-  }
-
-  return numberOfArguments;
  }
 
  std::tuple<std::shared_ptr<std::vector<char>>>
@@ -1053,6 +974,13 @@ void RangeMatcherMethods4Lua::registerMethods2LuaBase(std::weak_ptr<LuaBase> lua
 
  REGISTER( rmClear, "clears the variables vector");
  REGISTER( rmNextObjectIndex, " outputs the next index of the variables vector");
+/*
+ registerFunction( "rmNextObjectIndex", LuaFunction3<
+  CallingParameter<P<lua_State>>,
+  ReturningParameter<P<long>>,
+  callback_rmNextObjectIndex>::call, 
+  "outputs the next index of the variables vector");
+*/
 
  REGISTER( rmConsole, "starts a console with current settings");
  REGISTER( rmConsoleNew, "starts a console with new settings");
@@ -1063,8 +991,10 @@ void RangeMatcherMethods4Lua::registerMethods2LuaBase(std::weak_ptr<LuaBase> lua
  registerFunction( "rmDebugSetInt2", LuaFunction3<CallingParameter<P<long>>,ReturningParameter<V<long>>,callback_rmDebugSetInt2>::call, "saves the given integer value to the variables vector v2");
  registerFunction( "rmDebugGetInt2", LuaFunction3<CallingParameter<V<long>>,ReturningParameter<P<long>>,callback_rmDebugGetInt2>::call, "outputs the integer value from the variables vector at the given position v2");
 
- // REGISTER( rmFileRead, "reads one file per parameter");
- registerFunction( "rmFileRead", LuaFunction3N<CallingParameter<P<std::string>>,ReturningParameter<V<std::shared_ptr<std::vector<char>>>>,callback_rmFileRead>::call, "reads one file per parameter");
+ registerFunction( "rmFileRead", LuaFunction3N<
+  CallingParameter<P<std::string>>,
+  ReturningParameter<V<std::shared_ptr<std::vector<char>>>>,callback_rmFileRead>::call, 
+  "reads one file per parameter");
 
  REGISTER( rmFunctions, "returns all function names");
  REGISTER( rmHelp, "outputs help");
@@ -1073,8 +1003,17 @@ void RangeMatcherMethods4Lua::registerMethods2LuaBase(std::weak_ptr<LuaBase> lua
  REGISTER( rmNamedPatternRange, "a named pattern range, consists of a name and 2 pattern");
  REGISTER( rmNamedPatternRangeVector, "a vector of named pattern ranges");
  REGISTER( rmNonOverlappingMatcher, "creates a non overlapping matcher from all given pattern ranges ");
- REGISTER( rmPatternRegex, "initializes a regular expression object");
- REGISTER( rmPatternString, "initializes a pattern string object");
+
+ registerFunction( "rmPatternRegex", LuaFunction3N<
+  CallingParameter<P<std::string>>,
+  ReturningParameter<V<std::shared_ptr<PatternRegex>, std::shared_ptr<Pattern>>>,callback_rmPatternRegex>::call,
+  "reads one file per parameter");
+
+ registerFunction( "rmPatternString", LuaFunction3N<
+  CallingParameter<P<std::string>>,
+  ReturningParameter<V<std::shared_ptr<PatternString>, std::shared_ptr<Pattern>>>,callback_rmPatternString>::call,
+  "reads one file per parameter");
+
  REGISTER( rmToggleDebug, "toggles the debug flag and outputs its state");
 #undef REGISTER
 
