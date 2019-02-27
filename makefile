@@ -5,6 +5,8 @@ MAXLOAD := 4
 EXECUTABLES := main tests
 BUILDTYPES := debug release
 
+ALL_SOURCE_FILES = $(shell find src -iname '*.*pp')
+
 # avoids removements
 .SECONDARY : 
 
@@ -36,10 +38,10 @@ clean-% :
 clean-doxygen :
 	rm -rf doxygen
 
-tags : src/*.hpp src/*.cpp src/main/*.cpp src/tests/*.cpp
-	ctags-exuberant --extra=+q --fields=+a+i --recurse --c++-kinds=+p .
+tags : ${ALL_SOURCE_FILES}
+	ctags-exuberant --extra=+q --fields=+a+i --recurse --c++-kinds=+p src
 
-doxygen : src/* src/*/* | doxygen-dir
+doxygen : ${ALL_SOURCE_FILES} | doxygen-dir
 	cd doxygen; doxygen rmDoxygenConfigFile.txt
 	
 doxygen-dir :
@@ -61,7 +63,7 @@ build-debug-% : cmake-debug/cmake-files/rangematcher-% | testhpp
 build-release-% : cmake-release/cmake-files/rangematcher-% | testhpp
 	true
 
-cmake-debug/cmake-files/rangematcher-% : src/*.hpp src/*.cpp src/%/*.cpp
+cmake-debug/cmake-files/rangematcher-% : ${ALL_SOURCE_FILES}
 	rm -vf $@
 	mkdir -p $(dir $@)
 	cd $(dir $@); cmake ..
@@ -70,7 +72,7 @@ cmake-debug/cmake-files/rangematcher-% : src/*.hpp src/*.cpp src/%/*.cpp
 gdb-debug-% : cmake-debug/cmake-files/rangematcher-%
 	gdb $?
 
-cmake-release/cmake-files/rangematcher-% : src/*.hpp src/*.cpp src/%/*.cpp
+cmake-release/cmake-files/rangematcher-% : ${ALL_SOURCE_FILES}
 	rm -vf $@
 	mkdir -p $(dir $@)
 	cd $(dir $@); cmake ..

@@ -3,9 +3,7 @@
 #include "Any.hpp"
 #include "LuaBase.hpp"
 
-#include <map>
 #include <memory>
-#include <vector>
 
 class RangeMatcherMethods4Lua
 {

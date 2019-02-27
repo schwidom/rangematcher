@@ -543,58 +543,6 @@ void test10()
 
 }
 
-void test11()
-{
- std::cout << __func__ << std::endl;
-
- std::shared_ptr<LuaBase> lb1{std::make_shared<LuaBase>()};
- std::shared_ptr<LuaBase> lb2{std::make_shared<LuaBase>()};
- std::shared_ptr<LuaBase> lb3{std::make_shared<LuaBase>()};
-
- RangeMatcherMethods4Lua rangeMatcherMethods4Lua{};
- RangeMatcherMethods4Lua rangeMatcherMethods4Lua2{};
-
- rangeMatcherMethods4Lua.registerMethods2LuaBase(lb1);
- rangeMatcherMethods4Lua.registerMethods2LuaBase(lb2);
- rangeMatcherMethods4Lua2.registerMethods2LuaBase(lb3);
-
- {
-  int res = luaL_dostring( lb1->getLua(), "print( 0 == rmNextObjectIndex())"); // bplsg11e6p
-  std::cout << (0 == res) << std::endl;
- }
-
- {
-  int res = luaL_dostring( lb1->getLua(), "print( 0 == rmDebugSetInt2(99))");
-  std::cout << (0 == res) << std::endl;
- }
-
- {
-  int res = luaL_dostring( lb1->getLua(), "print( 1 == rmNextObjectIndex())");
-  std::cout << (0 == res) << std::endl;
- }
-
- {
-  int res = luaL_dostring( lb1->getLua(), "print( 99 == rmDebugGetInt2(0))"); // bplsg11e6p 
-  std::cout << (0 == res) << std::endl;
- }
-
- {
-  int res = luaL_dostring( lb2->getLua(), "print( 1 == rmNextObjectIndex())");
-  std::cout << (0 == res) << std::endl;
- }
-
- {
-  int res = luaL_dostring( lb2->getLua(), "print( 99 == rmDebugGetInt2(0))"); // bplsg11e6p 
-  std::cout << (0 == res) << std::endl;
- }
-
- {
-  int res = luaL_dostring( lb3->getLua(), "print( 0 == rmNextObjectIndex())");
-  std::cout << (0 == res) << std::endl;
- }
-
-}
-
 int main( int argc, char** argv)
 {
 
@@ -621,8 +569,6 @@ int main( int argc, char** argv)
  test9();
 
  test10();
-
- test11();
 
  return 0;
 }
