@@ -9,7 +9,7 @@ extern LuaInstance currentLuaInstance( lua_State * L);
 
 template <class T> struct Lua2CParameter;
 
-template <> struct Lua2CParameter<P<lua_State>> // TODO : possibly L<lua_State> (must not get parameter) + returning parameter count as constexpr
+template <> struct Lua2CParameter<S<lua_State>> 
 {
  using convertedType = lua_State *;
 

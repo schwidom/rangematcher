@@ -673,22 +673,22 @@ void RangeMatcherMethods4Lua::registerMethods2LuaBase(std::weak_ptr<LuaBase> lua
 #define REGISTER(X, Y) registerFunction( #X, X, Y);
 
  registerFunction( "rmClear", LuaFunction3<
-  CallingParameter<P<lua_State>>,
+  CallingParameter<S<lua_State>>,
   ReturningParameter<>, cb_rmClear>::call, 
   "clears the variables vector");
 
  registerFunction( "rmNextObjectIndex", LuaFunction3<
-  CallingParameter<P<lua_State>>,
+  CallingParameter<S<lua_State>>,
   ReturningParameter<P<long>>, cb_rmNextObjectIndex>::call, 
   "outputs the next index of the variables vector");
 
  registerFunction( "rmConsole", LuaFunction3<
-  CallingParameter<P<lua_State>>,
+  CallingParameter<S<lua_State>>,
   ReturningParameter<>, cb_rmConsole>::call,
   "starts a console with current settings");
 
  registerFunction( "rmConsoleNew", LuaFunction3<
-  CallingParameter<P<lua_State>>,
+  CallingParameter<S<lua_State>>,
   ReturningParameter<>, cb_rmConsoleNew>::call,
   "starts a console with new settings");
 
@@ -708,12 +708,12 @@ void RangeMatcherMethods4Lua::registerMethods2LuaBase(std::weak_ptr<LuaBase> lua
   "reads one file per parameter");
 
  registerFunction( "rmFunctions", LuaFunction3<
-  CallingParameter<P<lua_State>>,
+  CallingParameter<S<lua_State>>,
   ReturningParameter<P<std::shared_ptr<std::vector<std::string>>>>,cb_rmFunctions>::call, 
   "returns all function names");
 
  registerFunction( "rmHelp", LuaFunction3<
-  CallingParameter<P<lua_State>>,
+  CallingParameter<S<lua_State>>,
   ReturningParameter<>,cb_rmHelp>::call, 
   "outputs help");
 
@@ -768,7 +768,7 @@ void RangeMatcherMethods4Lua::registerMethods2LuaBase(std::weak_ptr<LuaBase> lua
   "reads one file per parameter");
 
  registerFunction( "rmToggleDebug", LuaFunction3<
-  CallingParameter<P<lua_State>>,
+  CallingParameter<S<lua_State>>,
   ReturningParameter<>,cb_rmToggleDebug>::call,
   "toggles the debug flag and outputs its state");
 #undef REGISTER
