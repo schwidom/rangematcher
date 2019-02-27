@@ -8,6 +8,7 @@
 // chkArguments : into RangeMatcherLuaRuntime
 // implement own Alloc scheme and extend with own control data
 // better error output for lua scripts
+// prove stack size
 
 #include "tools.hpp"
 
@@ -22,6 +23,8 @@
 #include "Range.hpp"
 #include "RangeMatcherMethods4Lua.hpp"
 
+#include "lua/C2LuaParameter.hpp"
+#include "lua/Lua2CParameter.hpp"
 #include "lua/LuaInstance.hpp"
 #include "lua/LuaParameterTraits.hpp"
 #include "lua/RangeMatcherLuaRuntime.hpp"
@@ -62,68 +65,7 @@ namespace
  // RangeMatcherLuaRuntime * points to rangeMatcherMethods4LuaInstances (for speed reasons)
  std::map<const lua_State*,RangeMatcherLuaRuntime *> lua2RangeMatcherLuaRuntime{}; //!< always valid pointers 
 
- template <class T> struct Lua2CParameter;
-
- template <> struct Lua2CParameter<P<lua_State>> // TODO : possibly L<lua_State> (must not get parameter) + returning parameter count as constexpr
- {
-  using convertedType = lua_State *;
-
-  static constexpr int numberOfLuaArguments = 0;
-
-  static convertedType doIt(lua_State *L, int offset) // length check is already done, pop is later expected
-  {
-   return L;
-  }
- };
-
- template <> struct Lua2CParameter<P<long>>
- {
-  using convertedType = long;
-
-  static constexpr int numberOfLuaArguments = 1;
-
-  static convertedType doIt(lua_State *L, int offset) // length check is already done, pop is later expected
-  {
-   return lua_tointeger(L, offset); // 1
-  }
- };
-
- template <> struct Lua2CParameter<P<std::string>>
- {
-  using convertedType = std::string;
-
-  static constexpr int numberOfLuaArguments = 1;
-
-  static convertedType doIt(lua_State *L, int offset) // length check is already done, pop is later expected
-  {
-   return lua_tostring(L, offset); // 1
-  }
- };
-
  void raiseLuaError( lua_State * L, std::string msg); // TODO : function ordering
-
- template <class T> struct Lua2CParameter<V<T>> // TODO : T was long, currently untested
- {
-  using convertedType = T;
-
-  static constexpr int numberOfLuaArguments = 1;
-
-  static T doIt(lua_State *L, int offset) // length check is already done, pop is later expected
-  {
-   auto & rt = *lua2RangeMatcherLuaRuntime.at(L); // TODO : provide already existing rt
-
-   long intIdx{lua_tointeger(L, offset)}; // 1
-
-   auto savedValue(rt.vectorOfObjects.at(intIdx)->get<T>());
-
-   if( !savedValue)
-   {
-    raiseLuaError( L, "wrong type at index " + std::to_string(intIdx) + " argument : " + std::to_string( offset));
-   }
-
-   return *savedValue;
-  }
- };
 
  template <class T> struct Lua2CParameters;
 
@@ -157,107 +99,6 @@ namespace
   static std::tuple<> doIt(lua_State *L, int offset)
   {
    return std::tuple<>();
-  }
- };
-
- template <class T> struct C2LuaParameter;
-
- template <> struct C2LuaParameter<P<long>>
- {
-  using convertedType = long;
-  static int doIt(lua_State *L, int offset, convertedType value) 
-  {
-   // TODO : prove stack size
-   lua_pushinteger(L, value);
-   return 1;
-  }
- };
-
- template <> struct C2LuaParameter<P<std::shared_ptr<std::vector<std::string>>>>
- {
-  using convertedType = std::shared_ptr<std::vector<std::string>>;
-  static int doIt(lua_State *L, int offset, convertedType values) 
-  {
-   // TODO : prove stack size
-   for( const auto & value : *values)
-   {
-    lua_pushstring(L, value.c_str());
-   }
-
-   return values->size();
-  }
- };
-
- template <> struct C2LuaParameter<P<std::shared_ptr<std::vector<MatchRange<long>>>>>
- {
-  using convertedType = std::shared_ptr<std::vector<MatchRange<long>>>;
-
-  static int doIt(lua_State *L, int offset, convertedType values) 
-  {
-   // TODO : prove stack size
-
-   for( const auto & matchRange : *values)
-   {
-    const MatchRange<long>::I & i (matchRange.i());
-
-    lua_createtable(L, 0, 5);
-    int table = lua_gettop(L);
-
-    lua_pushstring( L, "name");
-    lua_pushstring( L, i.namingWeakOrdered.name.c_str());
-    lua_settable( L, table); 
-
-    lua_pushstring( L, "begin.begin");
-    lua_pushinteger( L, i.d.begin.begin);
-    lua_settable( L, table); 
-
-    lua_pushstring( L, "begin.end");
-    lua_pushinteger( L, i.d.begin.end);
-    lua_settable( L, table); 
-
-    lua_pushstring( L, "end.begin");
-    lua_pushinteger( L, i.d.end.begin);
-    lua_settable( L, table); 
-
-    lua_pushstring( L, "end.end");
-    lua_pushinteger( L, i.d.end.end);
-    lua_settable( L, table); 
-   }
-
-   return values->size();
-  }
- };
-
- template <class T > struct C2LuaParameter<V<T>> // TODO : addTypes variant
- {
-  using convertedType = T;
-  static int doIt(lua_State *L, int offset, convertedType value) 
-  {
-   auto & rt = *lua2RangeMatcherLuaRuntime.at(L); // TODO : provide already existing rt
-
-   std::unique_ptr<Any<T>> returnValue(std::make_unique<Any<T>>(value));
-   rt.vectorOfObjects.push_back( std::move(returnValue));
-
-   // TODO : prove stack size
-   lua_pushinteger(L, rt.vectorOfObjects.size() - 1);
-   return 1;
-  }
- };
-
- template <class T, class ... Tadditional > struct C2LuaParameter<V<T, Tadditional...>> // TODO : addTypes variant
- {
-  using convertedType = T;
-  static int doIt(lua_State *L, int offset, convertedType value) 
-  {
-   auto & rt = *lua2RangeMatcherLuaRuntime.at(L); // TODO : provide already existing rt
-
-   std::unique_ptr<Any<T>> returnValue(std::make_unique<Any<T>>(value));
-   returnValue -> template addTypes<Tadditional...>();
-   rt.vectorOfObjects.push_back( std::move(returnValue));
-
-   // TODO : prove stack size
-   lua_pushinteger(L, rt.vectorOfObjects.size() - 1);
-   return 1;
   }
  };
 
@@ -740,7 +581,7 @@ typename type_get< typename FunctionType3Instance::returnType, 0 >::type
 LuaInstance currentLuaInstance( lua_State * L)
 {
  auto & rt = *lua2RangeMatcherLuaRuntime.at(L);
- rt.lastErrorMessage = "";
+ rt.lastErrorMessage = ""; // TODO : clanup on reading
  return LuaInstance( L, rt);
 }
 
