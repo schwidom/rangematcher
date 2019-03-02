@@ -4,8 +4,6 @@
 // - LuaFunction3[N] for creating and expanding vectors
 
 // RangeMatcherLuaRuntime : externalize
-// raiseLuaError : into RangeMatcherLuaRuntime
-// chkArguments : into RangeMatcherLuaRuntime
 // implement own Alloc scheme and extend with own control data
 // better error output for lua scripts
 // prove stack size
@@ -24,10 +22,20 @@
 #include "RangeMatcherMethods4Lua.hpp"
 
 #include "lua/C2LuaParameter.hpp"
+#include "lua/C2LuaParameters.hpp"
+#include "lua/FunctionType3.hpp"
 #include "lua/Lua2CParameter.hpp"
+#include "lua/Lua2CParameters.hpp"
+#include "lua/LuaFunction3.hpp"
+#include "lua/LuaFunction3N.hpp"
+#include "lua/LuaFunction3NVector1.hpp"
+#include "lua/LuaFunction3NVector.hpp"
 #include "lua/LuaInstance.hpp"
 #include "lua/LuaParameterTraits.hpp"
 #include "lua/RangeMatcherLuaRuntime.hpp"
+#include "lua/readParameterIntoTuple.hpp"
+#include "lua/readParameterIntoTupleN.hpp"
+#include "lua/writeParameterFromTuple.hpp"
 
 #include <algorithm> // transform
 #include <functional> // bind
@@ -65,293 +73,6 @@ namespace
  // RangeMatcherLuaRuntime * points to rangeMatcherMethods4LuaInstances (for speed reasons)
  std::map<const lua_State*,RangeMatcherLuaRuntime *> lua2RangeMatcherLuaRuntime{}; //!< always valid pointers 
 
- void raiseLuaError( lua_State * L, std::string msg); // TODO : function ordering
-
- template <class T> struct Lua2CParameters;
-
- template <class T, class ... Tp> struct Lua2CParameters<std::tuple<T, Tp...>>
- {
-  using convertedType = typename tuple_type_cat<
-   std::tuple<typename Lua2CParameter<T>::convertedType>, 
-   typename Lua2CParameters<std::tuple<Tp...>>::convertedType
-   >::type;
-
-  static constexpr int numberOfLuaArguments = 0 
-   + Lua2CParameter<T>::numberOfLuaArguments
-   + Lua2CParameters<std::tuple<Tp...>>::numberOfLuaArguments;
-
-  // static std::tuple<T, Tp...> doIt(lua_State *L, int offset)
-  static decltype(auto) doIt(lua_State *L, int offset)
-  {
-   return std::tuple_cat(
-    std::make_tuple(Lua2CParameter<T>::doIt(L, offset)), 
-    Lua2CParameters<std::tuple<Tp...>>::doIt(L, 1 + offset)
-   );
-  }
- };
-
- template <> struct Lua2CParameters<std::tuple<>>
- {
-  using convertedType = std::tuple<>;
-
-  static constexpr int numberOfLuaArguments = 0;
-
-  static std::tuple<> doIt(lua_State *L, int offset)
-  {
-   return std::tuple<>();
-  }
- };
-
- template <class T> struct C2LuaParameters;
-
- template <class T, class ... Tp> struct C2LuaParameters<std::tuple<T, Tp...>>
- {
-  using convertedType = typename tuple_type_cat<
-   std::tuple<typename C2LuaParameter<T>::convertedType>, 
-   typename C2LuaParameters<std::tuple<Tp...>>::convertedType
-   >::type;
-
-  // static std::tuple<T, Tp...> doIt(lua_State *L, int offset)
-  static int doIt(lua_State *L, int offset, convertedType parameters)
-  {
-    return 0 
-     + C2LuaParameter<T>::doIt(L, offset, std::get<0>(parameters))
-     + C2LuaParameters<std::tuple<Tp...>>::doIt(L, 1 + offset, tail(parameters));
-  }
- };
-
- template <> struct C2LuaParameters<std::tuple<>>
- {
-  using convertedType = std::tuple<>;
-
-  static int doIt(lua_State *L, int offset, std::tuple<>)
-  {
-   return 0;
-  }
- };
-
- void chkArguments( lua_State * L, int n, std::string functionName); // TODO : order functions
- int chkArguments( lua_State * L, int nMin, int nMax, std::string functionName); // TODO : order functions
-
- template <class T> typename Lua2CParameters<T>::convertedType readParameterIntoTuple(lua_State *L)
- {
-  int numberOfLuaArguments{Lua2CParameters<T>::numberOfLuaArguments};
-  chkArguments( L, numberOfLuaArguments, __func__);
-
-  auto ret = Lua2CParameters<T>::doIt(L, 1);
-
-  lua_pop(L, numberOfLuaArguments);
-
-  return ret;
- }
-
- template <class T> typename Lua2CParameters<T>::convertedType readParameterIntoTupleN(lua_State *L, int offset)
- {
-  return Lua2CParameters<T>::doIt(L, offset);
- }
-
- template <class T> int writeParameterFromTuple(lua_State *L, typename C2LuaParameters<T>::convertedType parameters)
- {
-  // TODO prove possible needed stack extension
-  return C2LuaParameters<T>::doIt(L, 1, parameters);
-  // return std::tuple_size<T>::value;
- }
-
- template<class T_CallingParameter, class T_ReturningParameter, 
-  class T_CallingReturnType = typename Lua2CParameters<typename T_CallingParameter::type>::convertedType,
-  class T_ReturningReturnType = typename C2LuaParameters<typename T_ReturningParameter::type>::convertedType> struct FunctionType3;
-
- template<class ... T_CallingParameterP, class ... T_ReturningParameterP, 
-  class ... T_CallingConvertedTypeP, class ... T_ReturningConvertedTypeP> 
- struct FunctionType3<CallingParameter<T_CallingParameterP...>, ReturningParameter<T_ReturningParameterP...>
-  , std::tuple<T_CallingConvertedTypeP...>, std::tuple<T_ReturningConvertedTypeP...>>
- {
-  using type = std::tuple<T_ReturningConvertedTypeP...> (*)(T_CallingConvertedTypeP...); 
-
-  using returnType = std::tuple<T_ReturningConvertedTypeP...>; 
-
-  private:
-  using callType = std::tuple<T_CallingConvertedTypeP...>;
-
-  template <size_t ... I>
-  static returnType call2(type function, std::index_sequence<I...> is, callType parametersTuple)
-  {
-   return function(std::get<I>(parametersTuple)...);
-  }
-
-  public:
-  static returnType call(type function, callType parametersTuple)
-  {
-   return call2(function, std::make_index_sequence<sizeof...(T_CallingConvertedTypeP)>(), parametersTuple);
-  }
- };
-
- template <class T_CallingParameter, class T_ReturningParameter, 
-  typename FunctionType3<T_CallingParameter, T_ReturningParameter>::type FunctionOfInterest>
- struct LuaFunction3 
- {
-  // typedef int (*lua_CFunction) (lua_State *L);
-  static int call(lua_State *L)
-  {
-   currentLuaInstance(L);
-   
-   auto readin = readParameterIntoTuple<typename T_CallingParameter::type>(L); 
-
-   using FunctionType3Instance = FunctionType3<T_CallingParameter, T_ReturningParameter>;
-
-   typename FunctionType3Instance::returnType ret = FunctionType3Instance::call(FunctionOfInterest, readin);
-
-   return writeParameterFromTuple<typename T_ReturningParameter::type>(L, ret);
-  }
- };
-
- template <class T_CallingParameter, class T_ReturningParameter, 
-  typename FunctionType3<T_CallingParameter, T_ReturningParameter>::type FunctionOfInterest,
-  typename std::enable_if<Lua2CParameters<typename T_CallingParameter::type>::numberOfLuaArguments >= 1,int>::type = 0>
- struct LuaFunction3N 
- {
-  // typedef int (*lua_CFunction) (lua_State *L);
-  static int call(lua_State *L)
-  {
-
-   LuaInstance li { currentLuaInstance(L)};
-   
-   using FunctionType3Instance = FunctionType3<T_CallingParameter, T_ReturningParameter>;
-
-   int ret = 0;
-
-   int numberOfArguments = li.chkArguments( 0, std::numeric_limits<int>::max(), __func__);
-
-   std::list< typename Lua2CParameters<typename T_CallingParameter::type>::convertedType > queue;
-
-   int inputTupleSize{std::tuple_size<typename T_CallingParameter::type>::value}; 
-
-   if( 0 == inputTupleSize && 0 != numberOfArguments)
-   { 
-    li.raiseLuaError( "function with 0 parameters must get exactly 0 parameters");
-   }
-
-   for( int argumentNr = 0 ; argumentNr < numberOfArguments; argumentNr += inputTupleSize)
-   {
-    auto readin = readParameterIntoTupleN<typename T_CallingParameter::type>(L, 1 + argumentNr);
-    queue.push_back(readin);
-   }
-
-   lua_pop(L, numberOfArguments); 
-
-   for( auto & readin : queue)
-   {
-    typename FunctionType3Instance::returnType res = FunctionType3Instance::call(FunctionOfInterest, readin);
-
-    ret += writeParameterFromTuple<typename T_ReturningParameter::type>(L, res);
-   }
-   
-   return ret;
-  }
- };
-
- template <class T_CallingParameter, class T_ReturningParameter, 
-  typename FunctionType3<T_CallingParameter, T_ReturningParameter>::type FunctionOfInterest,
-  typename std::enable_if<Lua2CParameters<typename T_CallingParameter::type>::numberOfLuaArguments >= 1,int>::type = 0>
- struct LuaFunction3NVector
- {
-  // typedef int (*lua_CFunction) (lua_State *L);
-  static int call(lua_State *L)
-  {
-
-   LuaInstance li { currentLuaInstance(L)};
-   
-   using FunctionType3Instance = FunctionType3<T_CallingParameter, T_ReturningParameter>;
-
-   int numberOfArguments = li.chkArguments( 0, std::numeric_limits<int>::max(), __func__);
-
-   std::list< typename Lua2CParameters<typename T_CallingParameter::type>::convertedType > queue;
-
-   int inputTupleSize{std::tuple_size<typename T_CallingParameter::type>::value}; 
-
-   if( 0 == inputTupleSize && 0 != numberOfArguments)
-   { 
-    li.raiseLuaError( "function with 0 parameters must get exactly 0 parameters");
-   }
-
-   for( int argumentNr = 0 ; argumentNr < numberOfArguments; argumentNr += inputTupleSize)
-   {
-    auto readin = readParameterIntoTupleN<typename T_CallingParameter::type>(L, 1 + argumentNr);
-    queue.push_back(readin);
-   }
-
-   lua_pop(L, numberOfArguments); 
-
-   using NewConvertedReturnType = std::shared_ptr<std::vector<typename FunctionType3Instance::returnType>>;
-   
-   NewConvertedReturnType returnVector{};
-   returnVector = std::make_shared<typename NewConvertedReturnType::element_type>();
-
-   for( auto & readin : queue)
-   {
-    typename FunctionType3Instance::returnType res = FunctionType3Instance::call(FunctionOfInterest, readin);
-    returnVector->push_back(res);
-   }
-   
-   writeParameterFromTuple<std::tuple<V<NewConvertedReturnType>>>(L, std::make_tuple(returnVector));
-
-   return 1;
-  }
- };
-
- template <class T_CallingParameter, class T_ReturningParameter, 
-  typename FunctionType3<T_CallingParameter, T_ReturningParameter>::type FunctionOfInterest,
-  typename std::enable_if<Lua2CParameters<typename T_CallingParameter::type>::numberOfLuaArguments >= 1,int>::type = 0,
-  typename std::enable_if<std::tuple_size<typename T_ReturningParameter::type>::value == 1,int>::type = 0>
- struct LuaFunction3NVector1
- {
-  // typedef int (*lua_CFunction) (lua_State *L);
-  static int call(lua_State *L)
-  {
-
-   LuaInstance li { currentLuaInstance(L)};
-   
-   using FunctionType3Instance = FunctionType3<T_CallingParameter, T_ReturningParameter>;
-
-   int numberOfArguments = li.chkArguments( 0, std::numeric_limits<int>::max(), __func__);
-
-   std::list< typename Lua2CParameters<typename T_CallingParameter::type>::convertedType > queue;
-
-   int inputTupleSize{std::tuple_size<typename T_CallingParameter::type>::value}; 
-
-   if( 0 == inputTupleSize && 0 != numberOfArguments)
-   { 
-    li.raiseLuaError( "function with 0 parameters must get exactly 0 parameters");
-   }
-
-   for( int argumentNr = 0 ; argumentNr < numberOfArguments; argumentNr += inputTupleSize)
-   {
-    auto readin = readParameterIntoTupleN<typename T_CallingParameter::type>(L, 1 + argumentNr);
-    queue.push_back(readin);
-   }
-
-   lua_pop(L, numberOfArguments); 
-
-   using NewConvertedReturnType = std::shared_ptr<std::vector<
-typename type_get< typename FunctionType3Instance::returnType, 0 >::type
-
->>;
-   
-   NewConvertedReturnType returnVector{};
-   returnVector = std::make_shared<typename NewConvertedReturnType::element_type>();
-
-   for( auto & readin : queue)
-   {
-    typename FunctionType3Instance::returnType res = FunctionType3Instance::call(FunctionOfInterest, readin);
-    returnVector->push_back(std::get<0>(res));
-   }
-   
-   writeParameterFromTuple<std::tuple<V<NewConvertedReturnType>>>(L, std::make_tuple(returnVector));
-
-   return 1;
-  }
- };
-
  void collectGarbagePerRangeMatcherLuaRuntime(RangeMatcherLuaRuntime & rangeMatcherLuaRuntime)
  {
    std::vector<lua_State*> toDelete;
@@ -382,38 +103,6 @@ typename type_get< typename FunctionType3Instance::returnType, 0 >::type
 
    collectGarbagePerRangeMatcherLuaRuntime(kvp.second);
   }
- }
-
-
- void raiseLuaError( lua_State * L, std::string msg) // TODO : deprecated
- {
-  auto & rt = *lua2RangeMatcherLuaRuntime.at(L);
-
-  rt.lastErrorMessage = msg;
-  lua_pushstring(L, rt.lastErrorMessage.c_str());
-  lua_error(L);
- }
-
- void chkArguments( lua_State * L, int n, std::string functionName) // TODO : deprecated
- {
-  int numberOfArguments = lua_gettop(L);
-
-  if( n != numberOfArguments)
-  {
-   raiseLuaError( L, "Incorrect number of arguments to '"+ functionName +"'");
-  }
- }
-
- int chkArguments( lua_State * L, int nMin, int nMax, std::string functionName) // TODO : deprecated
- {
-  int numberOfArguments = lua_gettop(L);
-
-  if( !( nMin <= numberOfArguments && numberOfArguments <= nMax))
-  {
-   raiseLuaError( L, "Incorrect number of arguments to '"+ functionName +"'");
-  }
-
-  return numberOfArguments;
  }
 
  std::tuple<long> cb_rmNextObjectIndex(lua_State * L)
@@ -558,8 +247,6 @@ typename type_get< typename FunctionType3Instance::returnType, 0 >::type
 
  std::tuple<> cb_rmConsoleNew(lua_State * L) 
  {
-  auto & rt = *lua2RangeMatcherLuaRuntime.at(L);
-
   Console(StreamPair{std::cin, std::cout});
 
   return std::tuple<>();
@@ -670,8 +357,6 @@ void RangeMatcherMethods4Lua::registerMethods2LuaBase(std::weak_ptr<LuaBase> lua
   mohorlf->emplace(functionName, helpString);
  }};
 
-#define REGISTER(X, Y) registerFunction( #X, X, Y);
-
  registerFunction( "rmClear", LuaFunction3<
   CallingParameter<S<lua_State>>,
   ReturningParameter<>, cb_rmClear>::call, 
@@ -771,7 +456,6 @@ void RangeMatcherMethods4Lua::registerMethods2LuaBase(std::weak_ptr<LuaBase> lua
   CallingParameter<S<lua_State>>,
   ReturningParameter<>,cb_rmToggleDebug>::call,
   "toggles the debug flag and outputs its state");
-#undef REGISTER
 
 }
 
