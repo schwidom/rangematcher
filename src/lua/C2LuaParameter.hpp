@@ -15,12 +15,21 @@ extern LuaInstance currentLuaInstance( lua_State * L);
 
 template <class T> struct C2LuaParameter;
 
+template <> struct C2LuaParameter<P<bool>>
+{
+ using convertedType = bool;
+ static int doIt(lua_State *L, int offset, convertedType value) 
+ {
+  lua_pushboolean(L, value);
+  return 1;
+ }
+};
+
 template <> struct C2LuaParameter<P<long>>
 {
  using convertedType = long;
  static int doIt(lua_State *L, int offset, convertedType value) 
  {
-  // TODO : prove stack size
   lua_pushinteger(L, value);
   return 1;
  }
@@ -31,7 +40,6 @@ template <> struct C2LuaParameter<P<std::shared_ptr<std::vector<std::string>>>>
  using convertedType = std::shared_ptr<std::vector<std::string>>;
  static int doIt(lua_State *L, int offset, convertedType values) 
  {
-  // TODO : prove stack size
   for( const auto & value : *values)
   {
    lua_pushstring(L, value.c_str());
@@ -47,8 +55,6 @@ template <> struct C2LuaParameter<P<std::shared_ptr<std::vector<MatchRange<long>
 
  static int doIt(lua_State *L, int offset, convertedType values) 
  {
-  // TODO : prove stack size
-
   for( const auto & matchRange : *values)
   {
    const MatchRange<long>::I & i (matchRange.i());

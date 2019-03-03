@@ -11,7 +11,6 @@ public:
  struct D
  {
   Range<T> begin;
-  bool complete;
   Range<T> end;
  };
 

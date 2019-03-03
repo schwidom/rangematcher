@@ -7,6 +7,7 @@
 // implement own Alloc scheme and extend with own control data
 // better error output for lua scripts
 // prove stack size
+// get rid of the TYPE macro
 
 #include "tools.hpp"
 
@@ -205,12 +206,16 @@ namespace
    return std::make_tuple(std::shared_ptr<std::vector<char>>(FileToVector(stringOfInterest).get()));
  }
 
- std::tuple<std::shared_ptr<std::vector<MatchRange<long>>>> 
+ std::tuple<bool, std::shared_ptr<std::vector<MatchRange<long>>>>
  cb_rmMatchRanges(std::shared_ptr<NonOverlappingMatcher> nonOverlappingMatcher, std::shared_ptr<std::vector<char>> fileVector)
  {
-  std::shared_ptr<std::vector<MatchRange<TYPE>>> matchedRanges ( nonOverlappingMatcher->matchAll(Range<TYPE>{(fileVector)->begin(), (fileVector)->end()}));
+
+  bool complete;
+  std::shared_ptr<std::vector<MatchRange<TYPE>>> matchedRanges;
+
+  std::tie(complete, matchedRanges) = nonOverlappingMatcher->matchAll(Range<TYPE>{(fileVector)->begin(), (fileVector)->end()});
  
-  std::shared_ptr<std::vector<MatchRange<long>>> matchedRangesRelative{std::make_shared<std::vector<MatchRange<long>>>()};
+  std::shared_ptr<std::vector<MatchRange<long>>> matchedRangesRelative{std::make_shared<std::vector<MatchRange<long>>>()}; 
 
   for( const auto & value : *matchedRanges)
   {
@@ -220,14 +225,12 @@ namespace
 
    i2.namingWeakOrdered = i.namingWeakOrdered;
    i2.d.begin = Range<long>( iRoot.d.begin.begin, i.d.begin);
-   i2.d.complete = i.d.complete;
    i2.d.end = Range<long>( iRoot.d.begin.begin, i.d.end);
 
-   // matchedRangesRelative->push_back(MatchRange<long>{ });
    matchedRangesRelative->push_back(i2);
   }
  
-  return std::make_tuple(matchedRangesRelative);
+  return std::make_tuple(complete, matchedRangesRelative);
  }
 
  std::tuple<std::shared_ptr<std::vector<MatchRange<long>>>> 
@@ -404,7 +407,7 @@ void RangeMatcherMethods4Lua::registerMethods2LuaBase(std::weak_ptr<LuaBase> lua
 
  registerFunction( "rmMatchRanges", LuaFunction3<
   CallingParameter<V<std::shared_ptr<NonOverlappingMatcher>>, V<std::shared_ptr<std::vector<char>>>>,
-  ReturningParameter<V<std::shared_ptr<std::vector<MatchRange<long>>>>>, cb_rmMatchRanges>::call,
+  ReturningParameter<P<bool>, V<std::shared_ptr<std::vector<MatchRange<long>>>>>, cb_rmMatchRanges>::call,
   "creates a vector of match ranges from a non overlapping matcher");
   
  registerFunction( "rmMatchRanges2Lua", LuaFunction3<

@@ -222,15 +222,19 @@ void test4()
 
  auto vectorTf( FileToVector("testfiles/002.txt").get());
 
- auto matchedRanges ( nonOverlappingMatcher.matchAll(Range<TYPE>{vectorTf->begin(), vectorTf->end()}));
+ bool complete;
+ std::unique_ptr<std::vector<MatchRange<TYPE>>> matchedRanges;
+
+ std::tie(complete, matchedRanges) = nonOverlappingMatcher.matchAll(Range<TYPE>{vectorTf->begin(), vectorTf->end()});
 
  std::cout << ( 3 == matchedRanges->size()) << std::endl;
+
+ std::cout << complete << std::endl;
 
  {
   auto & mr( matchedRanges->at(0));
   auto data( mr.i().d);
   std::cout << ( "initial-element-jc3jvchtrz" == mr.getName()) << std::endl;
-  std::cout << data.complete << std::endl;
   std::cout << ( vectorTf->size() == static_cast<size_t>(std::distance(data.begin.begin, data.end.end))) << std::endl; 
  }
 
@@ -238,7 +242,6 @@ void test4()
   auto & mr( matchedRanges->at(1));
   auto data( mr.i().d);
   std::cout << ( "prComment1" == mr.getName()) << std::endl;
-  std::cout << data.complete << std::endl;
   std::cout << ( "/* \" */" == std::string(data.begin.begin, data.end.end)) << std::endl;
  }
 
@@ -246,7 +249,6 @@ void test4()
   auto & mr( matchedRanges->at(2));
   auto data( mr.i().d);
   std::cout << ( "prString" == mr.getName()) << std::endl;
-  std::cout << data.complete << std::endl;
   std::cout << ( "\" /* \"" == std::string(data.begin.begin, data.end.end)) << std::endl;
  }
 }
@@ -269,15 +271,19 @@ void test5()
 
  auto vectorTf( FileToVector("testfiles/003.txt").get());
 
- auto matchedRanges ( nonOverlappingMatcher.matchAll(Range<TYPE>{vectorTf->begin(), vectorTf->end()}));
+ bool complete;
+ std::unique_ptr<std::vector<MatchRange<TYPE>>> matchedRanges;
+
+ std::tie(complete, matchedRanges) = nonOverlappingMatcher.matchAll(Range<TYPE>{vectorTf->begin(), vectorTf->end()});
 
  std::cout << ( 3 == matchedRanges->size()) << std::endl;
+
+ std::cout << !complete << std::endl;
 
  {
   auto & mr( matchedRanges->at(0));
   auto data( mr.i().d);
   std::cout << ( "initial-element-jc3jvchtrz" == mr.getName()) << std::endl;
-  std::cout << data.complete << std::endl;
   std::cout << ( vectorTf->size() == static_cast<size_t>(std::distance(data.begin.begin, data.end.end))) << std::endl; 
  }
 
@@ -285,7 +291,6 @@ void test5()
   auto & mr( matchedRanges->at(1));
   auto data( mr.i().d);
   std::cout << ( "prComment1" == mr.getName()) << std::endl;
-  std::cout << data.complete << std::endl;
   std::cout << ( "/* \" */" == std::string(data.begin.begin, data.end.end)) << std::endl;
  }
 
@@ -293,7 +298,6 @@ void test5()
   auto & mr( matchedRanges->at(2));
   auto data( mr.i().d);
   std::cout << ( "prString" == mr.getName()) << std::endl;
-  std::cout << !data.complete << std::endl;
   std::cout << ( "\" /* X\n" == std::string(data.begin.begin, data.end.end)) << std::endl;
  }
 }
@@ -324,15 +328,19 @@ void test6( std::string fname)
 
  auto vectorTf( FileToVector(fname).get());
 
- auto matchedRanges ( nonOverlappingMatcher.matchAll(Range<TYPE>{vectorTf->begin(), vectorTf->end()}));
+ bool complete;
+ std::unique_ptr<std::vector<MatchRange<TYPE>>> matchedRanges;
+
+ std::tie(complete, matchedRanges) = nonOverlappingMatcher.matchAll(Range<TYPE>{vectorTf->begin(), vectorTf->end()});
 
  std::cout << ( 8 == matchedRanges->size()) << std::endl;
+
+ std::cout << !complete << std::endl;
 
  {
   auto & mr( matchedRanges->at(0));
   auto data( mr.i().d);
   std::cout << ( "initial-element-jc3jvchtrz" == mr.getName()) << std::endl;
-  std::cout << data.complete << std::endl;
   std::cout << ( vectorTf->size() == static_cast<size_t>(std::distance(data.begin.begin, data.end.end))) << std::endl; 
  }
 
@@ -340,7 +348,6 @@ void test6( std::string fname)
   auto & mr( matchedRanges->at(1));
   auto data( mr.i().d);
   std::cout << ( "prComment2" == mr.getName()) << std::endl;
-  std::cout << data.complete << std::endl;
   std::cout << ( "// /* \" \'\n" == std::string(data.begin.begin, data.end.end)) << std::endl;
  }
 
@@ -348,7 +355,6 @@ void test6( std::string fname)
   auto & mr( matchedRanges->at(2));
   auto data( mr.i().d);
   std::cout << ( "prString2" == mr.getName()) << std::endl;
-  std::cout << data.complete << std::endl;
   std::cout << ( "\'\\\'\'" == std::string(data.begin.begin, data.end.end)) << std::endl;
  }
 
@@ -356,7 +362,6 @@ void test6( std::string fname)
   auto & mr( matchedRanges->at(3));
   auto data( mr.i().d);
   std::cout << ( "prString1" == mr.getName()) << std::endl;
-  std::cout << data.complete << std::endl;
   std::cout << ( "\" \' /* // \\\" \"" == std::string(data.begin.begin, data.end.end)) << std::endl;
  }
 
@@ -364,7 +369,6 @@ void test6( std::string fname)
   auto & mr( matchedRanges->at(4));
   auto data( mr.i().d);
   std::cout << ( "prComment1" == mr.getName()) << std::endl;
-  std::cout << data.complete << std::endl;
   std::cout << ( "/* \" \' // */" == std::string(data.begin.begin, data.end.end)) << std::endl;
  }
 
@@ -372,7 +376,6 @@ void test6( std::string fname)
   auto & mr( matchedRanges->at(5));
   auto data( mr.i().d);
   std::cout << ( "prString1" == mr.getName()) << std::endl;
-  std::cout << data.complete << std::endl;
   std::cout << ( "\"\"" == std::string(data.begin.begin, data.end.end)) << std::endl;
  }
 
@@ -380,7 +383,6 @@ void test6( std::string fname)
   auto & mr( matchedRanges->at(6));
   auto data( mr.i().d);
   std::cout << ( "prString2" == mr.getName()) << std::endl;
-  std::cout << data.complete << std::endl;
   std::cout << ( "''" == std::string(data.begin.begin, data.end.end)) << std::endl;
  }
 
@@ -388,7 +390,6 @@ void test6( std::string fname)
   auto & mr( matchedRanges->at(7));
   auto data( mr.i().d);
   std::cout << ( "prString1" == mr.getName()) << std::endl;
-  std::cout << !data.complete << std::endl;
   std::cout << ( "\" /* X\n" == std::string(data.begin.begin, data.end.end)) << std::endl;
  }
 

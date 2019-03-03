@@ -62,16 +62,16 @@ namespace {
  }
 }
 
-std::unique_ptr<std::vector<MatchRange<TYPE>>> NonOverlappingMatcher::matchAll(Range<TYPE> range) const
+std::tuple<bool,std::unique_ptr<std::vector<MatchRange<TYPE>>>> NonOverlappingMatcher::matchAll(Range<TYPE> range) const
 {
  std::vector<P> v;
 
- std::unique_ptr<std::vector<MatchRange<TYPE>>> ret{ std::make_unique<std::vector<MatchRange<TYPE>>>()};
+ std::unique_ptr<std::vector<MatchRange<TYPE>>> matchedRanges{ std::make_unique<std::vector<MatchRange<TYPE>>>()};
 
- ret->emplace_back(MatchRange<TYPE>::I{"initial-element-jc3jvchtrz", MatchRange<TYPE>::D{Range<TYPE>{range.begin, range.begin}, true, Range<TYPE>{range.end, range.end}}});
+ matchedRanges->emplace_back(MatchRange<TYPE>::I{"initial-element-jc3jvchtrz", MatchRange<TYPE>::D{Range<TYPE>{range.begin, range.begin}, Range<TYPE>{range.end, range.end}}});
 
  if( 0==m_PatternRange.size()){
-  return std::move(ret); 
+  return std::make_tuple(true, std::move(matchedRanges)); 
  }
 
  for( auto & namedPatternRange : m_PatternRange)
@@ -80,6 +80,8 @@ std::unique_ptr<std::vector<MatchRange<TYPE>>> NonOverlappingMatcher::matchAll(R
  }
 
  Range<TYPE> currentRange(range);
+
+ bool complete{false};
 
  while( true)
  {
@@ -95,10 +97,11 @@ std::unique_ptr<std::vector<MatchRange<TYPE>>> NonOverlappingMatcher::matchAll(R
    break; // no further matches
   }
 
+
   // bicwwvbdnj 
+  complete = false;
   matchRangeI.namingWeakOrdered = {v.at(0).first->getName()};
   matchRangeI.d.begin = matchOpen->get()->m_Range;
-  matchRangeI.d.complete = false;
   matchRangeI.d.end = Range<TYPE>{ range.end, range.end};
 
   std::function<bool()> currentRangeCheck{ [&currentRange, &range]() -> bool {
@@ -119,7 +122,7 @@ std::unique_ptr<std::vector<MatchRange<TYPE>>> NonOverlappingMatcher::matchAll(R
   currentRange.begin = matchOpen->get()->m_Range.end; // MatchGot
 
   if( ! currentRangeCheck()){
-   ret->emplace_back(matchRangeI);
+   matchedRanges->emplace_back(matchRangeI);
    break;
   }
 
@@ -128,23 +131,23 @@ std::unique_ptr<std::vector<MatchRange<TYPE>>> NonOverlappingMatcher::matchAll(R
   std::unique_ptr<Match<TYPE>> matchClose{ findClosingMatch( v, currentRange)};
   
   if( !matchClose->matched()){
-   ret->emplace_back(matchRangeI);
+   matchedRanges->emplace_back(matchRangeI);
    break; // no further matches
   }
 
   // bicwwvbdnj 
-  matchRangeI.d.complete = true;
+  complete = true;
   matchRangeI.d.end = matchClose->get()->m_Range;
 
   currentRange.begin = matchClose->get()->m_Range.end; // MatchGot
 
   if( ! currentRangeCheck()){ 
-   ret->emplace_back(matchRangeI);
+   matchedRanges->emplace_back(matchRangeI);
    break;
   }
 
-  ret->emplace_back(matchRangeI);
+  matchedRanges->emplace_back(matchRangeI);
  }
 
- return std::move(ret);
+ return std::make_tuple(complete, std::move(matchedRanges));
 }

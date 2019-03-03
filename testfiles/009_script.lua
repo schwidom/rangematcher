@@ -15,8 +15,10 @@ rmCheckNamedPatternRange1( namedPatternRangeVector1 )
 -- nonOverlappingMatcher = rmNonOverlappingMatcher( ranges4 + 0, ranges4 + 1, ranges4 + 2, ranges4 + 3) -- old
 nonOverlappingMatcher = rmNonOverlappingMatcher1( namedPatternRangeVector1)
 file1 = rmFileRead("testfiles/006.txt")
-result = rmMatchRanges(nonOverlappingMatcher, file1)
+complete, result = rmMatchRanges(nonOverlappingMatcher, file1)
 -- print( rmMatchRanges2Lua(result))
+
+print( not complete )
 
 expectedResults = { 
  { ["name"] = "initial-element-jc3jvchtrz",  ["begin.begin"]=0, ["begin.end"]=0, ["end.begin"]=51, ["end.end"]=51} ,
