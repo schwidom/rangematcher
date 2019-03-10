@@ -1,9 +1,9 @@
 
-// TODO : remove outdated TODOs
+// TODO : 
+// - remove outdated TODOs
 // - extract tools
 // - LuaFunction3[N] for creating and expanding vectors
 
-// RangeMatcherLuaRuntime : externalize
 // implement own Alloc scheme and extend with own control data
 // better error output for lua scripts
 // prove stack size
@@ -22,11 +22,6 @@
 #include "Range.hpp"
 #include "RangeMatcherMethods4Lua.hpp"
 
-#include "lua/C2LuaParameter.hpp"
-#include "lua/C2LuaParameters.hpp"
-#include "lua/FunctionType3.hpp"
-#include "lua/Lua2CParameter.hpp"
-#include "lua/Lua2CParameters.hpp"
 #include "lua/LuaFunction3.hpp"
 #include "lua/LuaFunction3N.hpp"
 #include "lua/LuaFunction3NVector1.hpp"
@@ -34,9 +29,6 @@
 #include "lua/LuaInstance.hpp"
 #include "lua/LuaParameterTraits.hpp"
 #include "lua/RangeMatcherLuaRuntime.hpp"
-#include "lua/readParameterIntoTuple.hpp"
-#include "lua/readParameterIntoTupleN.hpp"
-#include "lua/writeParameterFromTuple.hpp"
 
 #include <algorithm> // transform
 #include <functional> // bind
